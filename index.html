@@ -480,19 +480,19 @@
             const showRandomEncouragement = () => {
                 const randomIndex = Math.floor(Math.random() * encouragements.length);
                 const message = encouragements[randomIndex];
-                encouragementText。textContent = message;
+                encouragementText.textContent = message;
                 
                 encouragementToast.classList.add('show');
 
                 setTimeout(() => {
-                    encouragementToast。classList。remove('show');
+                    encouragementToast.classList.remove('show');
                 }, 3000);
             };
 
             // --- Event Listeners ---
             wordForm.addEventListener('submit', addWord);
-            exportTriggerBtn。addEventListener('click'， showExportModal);
-            closeModalBtn。addEventListener('click'， hideExportModal);
+            exportTriggerBtn.addEventListener('click', showExportModal);
+            closeModalBtn.addEventListener('click', hideExportModal);
             // 点击背景关闭模态框
             exportModal.addEventListener('click', (e) => {
                 if (e.target === exportModal) {
