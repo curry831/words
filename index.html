@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日单词记录本</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) CDN for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        /* 自定义动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        /* 已掌握单词的样式 */
+        .mastered {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📚 每日单词记录本</h1>
+            <p class="text-gray-600">记录你的每一点进步</p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Add Word Form -->
+            <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">添加新单词</h2>
+                <form id="word-form" class="space-y-4">
+                    <div>
+                        <label for="word-input" class="block text-sm font-medium text-gray-700">单词</label>
+                        <input type="text" id="word-input" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                               placeholder="e.g., serendipity">
+                    </div>
+                    <div>
+                        <label for="meaning-input" class="block text-sm font-medium text-gray-700">释义</label>
+                        <textarea id="meaning-input" rows="2"
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                  placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
+                    </div>
+                    <div>
+                        <label for="synonym-input" class="block text-sm font-medium text-gray-700">同义词</label>
+                        <textarea id="synonym-input" rows="2"
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                  placeholder="e.g., fortune, luck, fluke"></textarea>
+                    </div>
+                    <div>
+                        <label for="phrase-input" class="block text-sm font-medium text-gray-700">词组</label>
+                        <textarea id="phrase-input" rows="2"
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                  placeholder="e.g., a stroke of serendipity"></textarea>
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">
+                        添加单词
+                    </button>
+                </form>
+            </section>
+
+            <!-- Export and Stats Section -->
+            <!-- 优化: 导出按钮独立成行，更易于移动端点击 -->
+            <section class="mb-8">
+                <div class="mb-4">
+                    <button id="export-btn"
+                            class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
+                        📊 导出为Excel
+                    </button>
+                </div>
+                <!-- 优化: 统计卡片在手机上单列，平板上两列，电脑上四列 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow text-center">
+                        <p class="text-gray-500 text-sm">总词汇量</p>
+                        <p id="total-words" class="text-2xl font-bold text-indigo-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center">
+                        <p class="text-gray-500 text-sm">学习天数</p>
+                        <p id="study-days" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center">
+                        <p class="text-gray-500 text-sm">今日新词</p>
+                        <p id="today-words" class="text-2xl font-bold text-blue-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center">
+                        <p class="text-gray-500 text-sm">已掌握</p>
+                        <p id="mastered-words" class="text-2xl font-bold text-purple-600">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Word List -->
+            <section id="word-list-container" class="space-y-6">
+                <!-- Words will be dynamically inserted here -->
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const STORAGE_KEY = 'dailyWords';
+            const wordForm = document.getElementById('word-form');
+            const wordInput = document.getElementById('word-input');
+            const meaningInput = document.getElementById('meaning-input');
+            const synonymInput = document.getElementById('synonym-input');
+            const phraseInput = document.getElementById('phrase-input');
+            const wordListContainer = document.getElementById('word-list-container');
+            const exportBtn = document.getElementById('export-btn');
+
+            // --- Data Management ---
+            const loadWords = () => {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : {};
+            };
+
+            const saveWords = (words) => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+            };
+
+            // --- Excel Export ---
+            const exportToExcel = () => {
+                const wordsData = loadWords();
+                const allWords = [];
+
+                for (const date in wordsData) {
+                    wordsData[date].forEach(word => {
+                        allWords.push({
+                            '日期': date,
+                            '单词': word.word,
+                            '释义': word.meaning || '',
+                            '同义词': word.synonym || '',
+                            '词组': word.phrase || '',
+                            '掌握状态': word.mastered ? '已掌握' : '学习中'
+                        });
+                    });
+                }
+
+                if (allWords.length === 0) {
+                    alert('没有数据可以导出！');
+                    return;
+                }
+
+                const ws = XLSX.utils.json_to_sheet(allWords);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "单词记录");
+
+                const today = new Date().toISOString().split('T')[0];
+                const fileName = `我的单词记录_${today}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+            };
+
+            // --- UI Rendering ---
+            const renderWords = () => {
+                const wordsData = loadWords();
+                wordListContainer.innerHTML = '';
+
+                const sortedDates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
+
+                if (sortedDates.length === 0) {
+                    wordListContainer.innerHTML = '<p class="text-center text-gray-500 bg-white p-8 rounded-lg shadow">还没有记录任何单词，快来添加第一个吧！</p>';
+                    updateStats(wordsData);
+                    return;
+                }
+
+                sortedDates.forEach(dateStr => {
+                    const dayWords = wordsData[dateStr];
+                    const dateObj = new Date(dateStr + 'T00:00:00');
+                    const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+                    
+                    const daySection = document.createElement('div');
+                    daySection.className = 'bg-white rounded-lg shadow-md p-6 fade-in';
+                    
+                    const dateHeader = document.createElement('h3');
+                    dateHeader.className = 'text-xl font-semibold text-gray-700 border-b pb-2 mb-4';
+                    dateHeader.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
+                    daySection.appendChild(dateHeader);
+
+                    const wordList = document.createElement('ul');
+                    wordList.className = 'space-y-4';
+
+                    dayWords.forEach(word => {
+                        const wordItem = document.createElement('li');
+                        wordItem.className = `p-4 border rounded-lg hover:shadow-md transition-shadow duration-300 ${word.mastered ? 'bg-gray-50' : 'bg-white'}`;
+                        wordItem.dataset.date = dateStr;
+                        wordItem.dataset.id = word.id;
+
+                        const wordHeaderDiv = document.createElement('div');
+                        wordHeaderDiv.className = 'flex justify-between items-start mb-2';
+
+                        const wordTitle = document.createElement('h4');
+                        wordTitle.className = `text-lg font-bold text-indigo-800 ${word.mastered ? 'mastered' : ''}`;
+                        wordTitle.textContent = word.word;
+
+                        const actionButtons = document.createElement('div');
+                        actionButtons.className = 'flex space-x-2';
+
+                        const masterBtn = document.createElement('button');
+                        masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
+                        // 优化: 增加内边距，增大触摸区域
+                        masterBtn.className = 'text-xl p-1 hover:scale-110 transition-transform';
+                        masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
+                        masterBtn.onclick = () => toggleMaster(dateStr, word.id);
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerHTML = '🗑️';
+                        // 优化: 增加内边距，增大触摸区域
+                        deleteBtn.className = 'text-xl p-1 hover:scale-110 transition-transform';
+                        deleteBtn.title = '删除';
+                        deleteBtn.onclick = () => deleteWord(dateStr, word.id);
+
+                        actionButtons.appendChild(masterBtn);
+                        actionButtons.appendChild(deleteBtn);
+                        wordHeaderDiv.appendChild(wordTitle);
+                        wordHeaderDiv.appendChild(actionButtons);
+                        wordItem.appendChild(wordHeaderDiv);
+                        
+                        if (word.meaning) {
+                            const meaningP = document.createElement('p');
+                            meaningP.className = 'text-gray-600 mb-1';
+                            meaningP.innerHTML = `<strong>释义:</strong> ${word.meaning}`;
+                            wordItem.appendChild(meaningP);
+                        }
+
+                        if (word.synonym) {
+                            const synonymP = document.createElement('p');
+                            synonymP.className = 'text-gray-600 mb-1';
+                            synonymP.innerHTML = `<strong>同义词:</strong> ${word.synonym}`;
+                            wordItem.appendChild(synonymP);
+                        }
+
+                        if (word.phrase) {
+                            const phraseP = document.createElement('p');
+                            phraseP.className = 'text-gray-500 italic text-sm';
+                            phraseP.innerHTML = `<strong>词组:</strong> ${word.phrase}`;
+                            wordItem.appendChild(phraseP);
+                        }
+
+                        wordList.appendChild(wordItem);
+                    });
+
+                    daySection.appendChild(wordList);
+                    wordListContainer.appendChild(daySection);
+                });
+
+                updateStats(wordsData);
+            };
+            
+            // --- Stats Update ---
+            const updateStats = (wordsData) => {
+                let totalWords = 0;
+                let masteredWords = 0;
+                const today = new Date().toISOString().split('T')[0];
+                let todayWordsCount = 0;
+
+                const dates = Object.keys(wordsData);
+                dates.forEach(date => {
+                    const dayWords = wordsData[date];
+                    totalWords += dayWords.length;
+                    dayWords.forEach(w => { if (w.mastered) masteredWords++; });
+                    if (date === today) {
+                        todayWordsCount = dayWords.length;
+                    }
+                });
+
+                document.getElementById('total-words').textContent = totalWords;
+                document.getElementById('study-days').textContent = dates.length;
+                document.getElementById('today-words').textContent = todayWordsCount;
+                document.getElementById('mastered-words').textContent = masteredWords;
+            };
+
+            // --- Actions ---
+            const addWord = (e) => {
+                e.preventDefault();
+                const wordText = wordInput.value.trim();
+                const meaningText = meaningInput.value.trim();
+                const synonymText = synonymInput.value.trim();
+                const phraseText = phraseInput.value.trim();
+
+                if (!wordText) return;
+
+                const today = new Date().toISOString().split('T')[0];
+                const wordsData = loadWords();
+
+                if (!wordsData[today]) {
+                    wordsData[today] = [];
+                }
+
+                const newWord = {
+                    id: Date.now(),
+                    word: wordText,
+                    meaning: meaningText,
+                    synonym: synonymText,
+                    phrase: phraseText,
+                    mastered: false
+                };
+
+                wordsData[today].push(newWord);
+                saveWords(wordsData);
+
+                wordForm.reset();
+                wordInput.focus();
+                renderWords();
+            };
+
+            const deleteWord = (date, id) => {
+                const idStr = String(id);
+                if (confirm('确定要删除这个单词吗？')) {
+                    const wordsData = loadWords();
+                    wordsData[date] = wordsData[date].filter(w => String(w.id) !== idStr);
+                    if (wordsData[date].length === 0) {
+                        delete wordsData[date];
+                    }
+                    saveWords(wordsData);
+                    renderWords();
+                }
+            };
+
+            const toggleMaster = (date, id) => {
+                const idStr = String(id);
+                const wordsData = loadWords();
+                const word = wordsData[date].find(w => String(w.id) === idStr);
+                if (word) {
+                    word.mastered = !word.mastered;
+                    saveWords(wordsData);
+                    renderWords();
+                }
+            };
+
+            // --- Event Listeners ---
+            wordForm.addEventListener('submit', addWord);
+            exportBtn.addEventListener('click', exportToExcel);
+
+            // Initial render
+            renderWords();
+        });
+    </script>
+</body>
+</html>
