@@ -29,9 +29,56 @@
             text-decoration: line-through;
             opacity: 0.6;
         }
+        /* 鼓励提示的样式 */
+        #encouragement-toast {
+            transform: translateX(-50%) translateY(-100px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        #encouragement-toast.show {
+            transform: translateX(-50%) translateY(20px);
+            opacity: 1;
+        }
+        /* 导出模态框背景 */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-backdrop.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        /* 导出模态框内容 */
+        .modal-content {
+            transform: scale(0.9);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-backdrop.show .modal-content {
+            transform: scale(1);
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- 鼓励提示容器 -->
+    <div id="encouragement-toast" class="fixed top-4 left-1/2 z-50 bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
+        <span id="encouragement-text"></span>
+    </div>
+
+    <!-- 导出模态框 -->
+    <div id="export-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4">
+        <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">选择导出日期</h3>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div id="export-options" class="space-y-2">
+                <!-- 选项将在这里动态生成 -->
+            </div>
+        </div>
+    </div>
+
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
         <!-- Header -->
         <header class="text-center mb-8">
@@ -77,15 +124,13 @@
             </section>
 
             <!-- Export and Stats Section -->
-            <!-- 优化: 导出按钮独立成行，更易于移动端点击 -->
             <section class="mb-8">
                 <div class="mb-4">
-                    <button id="export-btn"
+                    <button id="export-trigger-btn"
                             class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
                         📊 导出为Excel
                     </button>
                 </div>
-                <!-- 优化: 统计卡片在手机上单列，平板上两列，电脑上四列 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="bg-white p-4 rounded-lg shadow text-center">
                         <p class="text-gray-500 text-sm">总词汇量</p>
@@ -122,7 +167,26 @@
             const synonymInput = document.getElementById('synonym-input');
             const phraseInput = document.getElementById('phrase-input');
             const wordListContainer = document.getElementById('word-list-container');
-            const exportBtn = document.getElementById('export-btn');
+            const exportTriggerBtn = document.getElementById('export-trigger-btn');
+            const exportModal = document.getElementById('export-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const exportOptions = document.getElementById('export-options');
+            const encouragementToast = document.getElementById('encouragement-toast');
+            const encouragementText = document.getElementById('encouragement-text');
+
+            // --- 鼓励语句库 ---
+            const encouragements = [
+                "太棒了！又掌握一个新单词！",
+                "坚持就是胜利！",
+                "你的词汇量正在稳步增长！",
+                "Excellent! Keep it up!",
+                "知识就是力量，你正在变强！",
+                "今天的你比昨天更博学了！",
+                "Amazing! 每一个单词都是一块基石。",
+                "持之以恒，终将大成！",
+                "你的努力，时间看得见！",
+                "又向目标迈进了一步！"
+            ];
 
             // --- Data Management ---
             const loadWords = () => {
@@ -134,8 +198,76 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
             };
 
-            // --- Excel Export ---
-            const exportToExcel = () => {
+            // --- Modal Logic ---
+            const showExportModal = () => {
+                const wordsData = loadWords();
+                const dates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
+
+                exportOptions.innerHTML = ''; // Clear previous options
+
+                if (dates.length === 0) {
+                    exportOptions.innerHTML = '<p class="text-gray-500 text-center">没有可导出的数据。</p>';
+                } else {
+                    // "Export All" button
+                    const exportAllBtn = document.createElement('button');
+                    exportAllBtn.textContent = '📦 导出全部数据';
+                    exportAllBtn.className = 'w-full text-left p-3 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-semibold transition duration-300';
+                    exportAllBtn.onclick = exportAllData;
+                    exportOptions.appendChild(exportAllBtn);
+                    
+                    // Individual date buttons
+                    dates.forEach(dateStr => {
+                        const dayWords = wordsData[dateStr];
+                        const dateObj = new Date(dateStr + 'T00:00:00');
+                        const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+                        
+                        const dateBtn = document.createElement('button');
+                        dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
+                        dateBtn.className = 'w-full text-left p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-300';
+                        dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
+                        exportOptions.appendChild(dateBtn);
+                    });
+                }
+
+                exportModal.classList.add('show');
+            };
+
+            const hideExportModal = () => {
+                exportModal.classList.remove('show');
+            };
+
+            // --- Excel Export Functions ---
+            const exportDataForDate = (dateStr, formattedDate) => {
+                const wordsData = loadWords();
+                const wordsForDate = wordsData[dateStr] || [];
+                const allWords = [];
+
+                wordsForDate.forEach(word => {
+                    allWords.push({
+                        '日期': dateStr,
+                        '单词': word.word,
+                        '释义': word.meaning || '',
+                        '同义词': word.synonym || '',
+                        '词组': word.phrase || '',
+                        '掌握状态': word.mastered ? '已掌握' : '学习中'
+                    });
+                });
+
+                if (allWords.length === 0) {
+                    alert('该日期没有数据可以导出！');
+                    return;
+                }
+
+                const ws = XLSX.utils.json_to_sheet(allWords);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "单词记录");
+                
+                const fileName = `单词记录_${dateStr}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                hideExportModal();
+            };
+            
+            const exportAllData = () => {
                 const wordsData = loadWords();
                 const allWords = [];
 
@@ -162,8 +294,9 @@
                 XLSX.utils.book_append_sheet(wb, ws, "单词记录");
 
                 const today = new Date().toISOString().split('T')[0];
-                const fileName = `我的单词记录_${today}.xlsx`;
+                const fileName = `我的单词记录_全部_${today}.xlsx`;
                 XLSX.writeFile(wb, fileName);
+                hideExportModal();
             };
 
             // --- UI Rendering ---
@@ -213,14 +346,12 @@
 
                         const masterBtn = document.createElement('button');
                         masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
-                        // 优化: 增加内边距，增大触摸区域
                         masterBtn.className = 'text-xl p-1 hover:scale-110 transition-transform';
                         masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
                         masterBtn.onclick = () => toggleMaster(dateStr, word.id);
 
                         const deleteBtn = document.createElement('button');
                         deleteBtn.innerHTML = '🗑️';
-                        // 优化: 增加内边距，增大触摸区域
                         deleteBtn.className = 'text-xl p-1 hover:scale-110 transition-transform';
                         deleteBtn.title = '删除';
                         deleteBtn.onclick = () => deleteWord(dateStr, word.id);
@@ -317,6 +448,8 @@
                 wordForm.reset();
                 wordInput.focus();
                 renderWords();
+
+                showRandomEncouragement();
             };
 
             const deleteWord = (date, id) => {
@@ -332,10 +465,10 @@
                 }
             };
 
-            const toggleMaster = (date, id) => {
+            const toggleMaster = (date， id) => {
                 const idStr = String(id);
                 const wordsData = loadWords();
-                const word = wordsData[date].find(w => String(w.id) === idStr);
+                const word = wordsData[date]。find(w => String(w。id) === idStr);
                 if (word) {
                     word.mastered = !word.mastered;
                     saveWords(wordsData);
@@ -343,9 +476,29 @@
                 }
             };
 
+            // --- 鼓励提示功能 ---
+            const showRandomEncouragement = () => {
+                const randomIndex = Math.floor(Math.random() * encouragements.length);
+                const message = encouragements[randomIndex];
+                encouragementText。textContent = message;
+                
+                encouragementToast.classList.add('show');
+
+                setTimeout(() => {
+                    encouragementToast。classList。remove('show');
+                }, 3000);
+            };
+
             // --- Event Listeners ---
             wordForm.addEventListener('submit', addWord);
-            exportBtn.addEventListener('click', exportToExcel);
+            exportTriggerBtn。addEventListener('click'， showExportModal);
+            closeModalBtn。addEventListener('click'， hideExportModal);
+            // 点击背景关闭模态框
+            exportModal.addEventListener('click', (e) => {
+                if (e.target === exportModal) {
+                    hideExportModal();
+                }
+            });
 
             // Initial render
             renderWords();
