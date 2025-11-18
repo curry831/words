@@ -6,8 +6,6 @@
     <title>每日单词记录本</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS (xlsx) CDN for Excel Export/Import -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,10 +19,10 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        。fade-in {
+        .fade-in {
             animation: fadeIn 0.3s ease-out;
         }
-        。mastered {
+        .mastered {
             text-decoration: line-through;
             opacity: 0.6;
         }
@@ -183,6 +181,18 @@
         .file-drop-zone input[type="file"] {
             display: none;
         }
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #fee2e2;
+            border-radius: 4px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +278,9 @@
                         <p class="text-xs text-gray-500 mt-1">支持 .xlsx 和 .xls 格式</p>
                     </div>
                 </div>
+
+                <!-- 错误消息区域 -->
+                <div id="import-error" class="error-message"></div>
 
                 <!-- 导入选项 -->
                 <div class="mb-4">
@@ -773,12 +786,17 @@
                 initializeImportExport();
             }
 
-            // 初始化导入导出功能
+            // 初始化导入导出功能 - 修复作用域问题
             function initializeImportExport() {
-                // 导入功能
+                console.log('初始化导入导出功能...');
+                
+                // 获取所有DOM元素
                 const importTriggerBtn = document.getElementById('import-trigger-btn');
+                const exportTriggerBtn = document.getElementById('export-trigger-btn');
                 const importModal = document.getElementById('import-modal');
+                const exportModal = document.getElementById('export-modal');
                 const closeImportModalBtn = document.getElementById('close-import-modal-btn');
+                const closeModalBtn = document.getElementById('close-modal-btn');
                 const fileDropZone = document.getElementById('file-drop-zone');
                 const importFileInput = document.getElementById('import-file-input');
                 const importPreview = document.getElementById('import-preview');
@@ -787,10 +805,53 @@
                 const cancelImportBtn = document.getElementById('cancel-import-btn');
                 const confirmImportBtn = document.getElementById('confirm-import-btn');
                 const importStatus = document.getElementById('import-status');
+                const importError = document.getElementById('import-error');
+                const exportOptions = document.getElementById('export-options');
 
-                importTriggerBtn.addEventListener('click', showImportModal);
+                // 检查元素是否存在
+                if (!importTriggerBtn) {
+                    console.error('找不到导入按钮元素');
+                    return;
+                }
+                
+                if (!exportTriggerBtn) {
+                    console.error('找不到导出按钮元素');
+                    return;
+                }
+
+                console.log('绑定导入按钮事件...');
+                
+                // 导入功能 - 修复事件绑定
+                importTriggerBtn.addEventListener('click', function(e) {
+                    console.log('导入按钮被点击');
+                    e.preventDefault();
+                    showImportModal();
+                });
+                
+                // 导出功能
+                exportTriggerBtn.addEventListener('click', function(e) {
+                    console.log('导出按钮被点击');
+                    e.preventDefault();
+                    showExportModal();
+                });
+
+                // 关闭模态框事件
                 closeImportModalBtn.addEventListener('click', hideImportModal);
+                closeModalBtn.addEventListener('click', hideExportModal);
                 cancelImportBtn.addEventListener('click', hideImportModal);
+                
+                // 点击模态框背景关闭
+                importModal.addEventListener('click', (e) => {
+                    if (e.target === importModal) {
+                        hideImportModal();
+                    }
+                });
+                
+                exportModal.addEventListener('click', (e) => {
+                    if (e.target === exportModal) {
+                        hideExportModal();
+                    }
+                });
                 
                 // 文件拖放处理
                 fileDropZone.addEventListener('click', () => {
@@ -894,27 +955,37 @@
                         
                     } catch (error) {
                         console.error('导入数据错误:', error);
-                        alert('导入失败，请重试');
+                        importError.textContent = '导入失败: ' + error.message;
+                        importError.classList.add('show');
                     } finally {
                         importStatus.classList.add('hidden');
                     }
                 });
 
-                // 导出功能
-                const exportTriggerBtn = document.getElementById('export-trigger-btn');
-                const exportModal = document.getElementById('export-modal');
-                const closeModalBtn = document.getElementById('close-modal-btn');
-                const exportOptions = document.getElementById('export-options');
-
-                exportTriggerBtn.addEventListener('click', showExportModal);
-                closeModalBtn.addEventListener('click', hideExportModal);
-                exportModal.addEventListener('click', (e) => {
-                    if (e.target === exportModal) {
-                        hideExportModal();
-                    }
+                // 监听导入选项变化
+                document.querySelectorAll('input[name="import-option"]').forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        if (importData) {
+                            showImportPreview(importData);
+                        }
+                    });
                 });
 
+                function showImportModal() {
+                    console.log('显示导入模态框');
+                    importModal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                    resetImportModal();
+                }
+
+                function hideImportModal() {
+                    importModal.classList.remove('show');
+                    document.body.style.overflow = '';
+                    resetImportModal();
+                }
+
                 function showExportModal() {
+                    console.log('显示导出模态框');
                     const dates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
                     exportOptions.innerHTML = '';
 
@@ -969,12 +1040,8 @@
                         return;
                     }
 
-                    const ws = XLSX.utils.json_to_sheet(allWords);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, "单词记录");
-                    
-                    const fileName = `单词记录_${dateStr}.xlsx`;
-                    XLSX.writeFile(wb, fileName);
+                    // 创建并下载Excel文件
+                    createAndDownloadExcel(allWords, `单词记录_${dateStr}.xlsx`);
                     hideExportModal();
                 }
                 
@@ -999,143 +1066,267 @@
                         return;
                     }
 
-                    const ws = XLSX.utils.json_to_sheet(allWords);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, "单词记录");
-
                     const today = new Date().toISOString().split('T')[0];
-                    const fileName = `我的单词记录_全部_${today}.xlsx`;
-                    XLSX.writeFile(wb, fileName);
+                    createAndDownloadExcel(allWords, `我的单词记录_全部_${today}.xlsx`);
                     hideExportModal();
                 }
-            }
 
-            function showImportModal() {
-                importModal.classList.add('show');
-                document.body.style.overflow = 'hidden';
-                resetImportModal();
-            }
-
-            function hideImportModal() {
-                importModal.classList.remove('show');
-                document.body.style.overflow = '';
-                resetImportModal();
-            }
-
-            function resetImportModal() {
-                importFileInput.value = '';
-                importPreview.classList.add('hidden');
-                importStatus.classList.add('hidden');
-                importData = null;
-                previewTable.innerHTML = '';
-            }
-
-            // 处理文件选择
-            function handleFileSelect(file) {
-                if (!file.name.match(/\.(xlsx|xls)$/)) {
-                    alert('请选择Excel文件（.xlsx 或 .xls）');
-                    return;
+                function resetImportModal() {
+                    importFileInput.value = '';
+                    importPreview.classList.add('hidden');
+                    importStatus.classList.add('hidden');
+                    importError.classList.remove('show');
+                    importData = null;
+                    previewTable.innerHTML = '';
                 }
 
-                const reader = new FileReader();
-                reader.onload = (e) => {
+                // 创建并下载Excel文件
+                function createAndDownloadExcel(data, fileName) {
+                    // 检查是否已加载XLSX库
+                    if (typeof XLSX === 'undefined') {
+                        // 动态加载XLSX库
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                        script.onload = function() {
+                            // 库加载完成后创建Excel文件
+                            createExcelFile(data, fileName);
+                        };
+                        script.onerror = function() {
+                            alert('无法加载Excel导出库，请检查网络连接');
+                        };
+                        document.head.appendChild(script);
+                    } else {
+                        // 库已加载，直接创建Excel文件
+                        createExcelFile(data, fileName);
+                    }
+                }
+
+                // 创建Excel文件
+                function createExcelFile(data, fileName) {
                     try {
-                        const data = new Uint8Array(e.target.result);
+                        const ws = XLSX.utils.json_to_sheet(data);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "单词记录");
+                        XLSX.writeFile(wb, fileName);
+                    } catch (error) {
+                        console.error('创建Excel文件失败:', error);
+                        alert('创建Excel文件失败: ' + error.message);
+                    }
+                }
+
+                // 处理文件选择
+                function handleFileSelect(file) {
+                    // 重置错误信息
+                    importError.classList.remove('show');
+                    
+                    // 检查文件类型
+                    if (!file.name.match(/\.(xlsx|xls)$/)) {
+                        importError.textContent = '请选择Excel文件（.xlsx 或 .xls）';
+                        importError.classList.add('show');
+                        return;
+                    }
+
+                    // 检查文件大小（限制为10MB）
+                    if (file.size > 10 * 1024 * 1024) {
+                        importError.textContent = '文件大小超过限制（10MB）';
+                        importError.classList.add('show');
+                        return;
+                    }
+
+                    // 显示加载状态
+                    importStatus.classList.remove('hidden');
+                    importStatus.innerHTML = '<div class="loading-spinner mx-auto mb-2"></div><p class="text-sm text-gray-600">正在读取文件...</p>';
+
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            
+                            // 检查XLSX库是否已加载
+                            if (typeof XLSX === 'undefined') {
+                                // 动态加载XLSX库
+                                const script = document.createElement('script');
+                                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                                script.onload = function() {
+                                    // 库加载完成后处理Excel文件
+                                    processExcelData(data);
+                                };
+                                script.onerror = function() {
+                                    importStatus.classList.add('hidden');
+                                    importError.textContent = '无法加载Excel处理库，请检查网络连接';
+                                    importError.classList.add('show');
+                                };
+                                document.head.appendChild(script);
+                            } else {
+                                // 库已加载，直接处理Excel文件
+                                processExcelData(data);
+                            }
+                        } catch (error) {
+                            console.error('读取文件错误:', error);
+                            importStatus.classList.add('hidden');
+                            importError.textContent = '读取文件失败: ' + error.message;
+                            importError.classList.add('show');
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        importStatus.classList.add('hidden');
+                        importError.textContent = '文件读取失败，请重试';
+                        importError.classList.add('show');
+                    };
+                    
+                    reader.readAsArrayBuffer(file);
+                }
+
+                // 处理Excel数据
+                function processExcelData(data) {
+                    try {
+                        importStatus.innerHTML = '<div class="loading-spinner mx-auto mb-2"></div><p class="text-sm text-gray-600">正在解析Excel文件...</p>';
+                        
                         const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                            throw new Error('Excel文件中没有工作表');
+                        }
+                        
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                         const jsonData = XLSX.utils.sheet_to_json(firstSheet);
                         
                         if (jsonData.length === 0) {
-                            alert('Excel文件中没有数据');
-                            return;
+                            throw new Error('Excel文件中没有数据');
                         }
 
-                        // 验证数据格式
-                        const requiredFields = ['日期', '单词'];
-                        const firstRow = jsonData[0];
-                        const hasRequiredFields = requiredFields.every(field => field in firstRow);
+                        // 验证数据格式 - 更灵活的列名匹配
+                        const columns = Object.keys(jsonData[0]);
+                        console.log('Excel列名:', columns);
                         
-                        if (!hasRequiredFields) {
-                            alert('Excel文件格式不正确，必须包含"日期"和"单词"列');
-                            return;
-                        }
-
-                        importData = jsonData;
-                        showImportPreview(jsonData);
-                    } catch (error) {
-                        console.error('读取Excel文件错误:', error);
-                        alert('读取Excel文件失败，请检查文件格式');
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            }
-
-            // 显示导入预览
-            function showImportPreview(data) {
-                // 创建预览表格
-                let tableHTML = `
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>单词</th>
-                            <th>释义</th>
-                            <th>同义词</th>
-                            <th>词组</th>
-                            <th>掌握状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                `;
-
-                // 只显示前10行作为预览
-                const previewRows = data.slice(0, 10);
-                previewRows.forEach(row => {
-                    tableHTML += `
-                        <tr>
-                            <td>${row['日期'] || ''}</td>
-                            <td>${row['单词'] || ''}</td>
-                            <td>${row['释义'] || ''}</td>
-                            <td>${row['同义词'] || ''}</td>
-                            <td>${row['词组'] || ''}</td>
-                            <td>${row['掌握状态'] || ''}</td>
-                        </tr>
-                    `;
-                });
-
-                tableHTML += '</tbody>';
-                previewTable.innerHTML = tableHTML;
-
-                // 显示导入摘要
-                const importOption = document.querySelector('input[name="import-option"]:checked').value;
-                let summaryText = `共 ${data.length} 条数据`;
-                
-                if (importOption === 'merge') {
-                    // 计算将导入的新数据量
-                    let newWordCount = 0;
-                    data.forEach(row => {
-                        const date = row['日期'];
-                        const word = row['单词'];
-                        if (date && word) {
-                            if (!wordsData[date] || !wordsData[date].some(w => w.word === word)) {
-                                newWordCount++;
+                        // 尝试匹配必需的列
+                        let dateColumn = null;
+                        let wordColumn = null;
+                        
+                        // 查找日期列
+                        for (const col of columns) {
+                            if (col.includes('日期') || col.toLowerCase().includes('date')) {
+                                dateColumn = col;
+                                break;
                             }
                         }
-                    });
-                    summaryText += `，其中 ${newWordCount} 条为新数据`;
-                }
-                
-                importSummary.textContent = summaryText;
-                importPreview.classList.remove('hidden');
-            }
-
-            // 监听导入选项变化
-            document.querySelectorAll('input[name="import-option"]').forEach(radio => {
-                radio.addEventListener('change', () => {
-                    if (importData) {
-                        showImportPreview(importData);
+                        
+                        // 查找单词列
+                        for (const col of columns) {
+                            if (col.includes('单词') || col.toLowerCase().includes('word')) {
+                                wordColumn = col;
+                                break;
+                            }
+                        }
+                        
+                        if (!dateColumn || !wordColumn) {
+                            throw new Error(`Excel文件格式不正确，必须包含"日期"和"单词"列。找到的列: ${columns.join(', ')}`);
+                        }
+                        
+                        // 标准化数据格式
+                        const standardizedData = jsonData.map(row => {
+                            const newRow = {};
+                            
+                            // 标准化日期列
+                            newRow['日期'] = row[dateColumn];
+                            
+                            // 标准化单词列
+                            newRow['单词'] = row[wordColumn];
+                            
+                            // 标准化其他列
+                            for (const col of columns) {
+                                if (col === dateColumn || col === wordColumn) continue;
+                                
+                                if (col.includes('释义') || col.toLowerCase().includes('meaning')) {
+                                    newRow['释义'] = row[col];
+                                } else if (col.includes('同义词') || col.toLowerCase().includes('synonym')) {
+                                    newRow['同义词'] = row[col];
+                                } else if (col.includes('词组') || col.toLowerCase().includes('phrase')) {
+                                    newRow['词组'] = row[col];
+                                } else if (col.includes('掌握') || col.toLowerCase().includes('master')) {
+                                    newRow['掌握状态'] = row[col];
+                                } else {
+                                    // 如果列不匹配任何已知列，保留原列名
+                                    newRow[col] = row[col];
+                                }
+                            }
+                            
+                            return newRow;
+                        });
+                        
+                        importData = standardizedData;
+                        showImportPreview(standardizedData);
+                        importStatus.classList.add('hidden');
+                    } catch (error) {
+                        console.error('处理Excel数据错误:', error);
+                        importStatus.classList.add('hidden');
+                        importError.textContent = '解析Excel文件失败: ' + error.message;
+                        importError.classList.add('show');
                     }
-                });
-            });
+                }
+
+                // 显示导入预览
+                function showImportPreview(data) {
+                    // 创建预览表格
+                    let tableHTML = `
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>单词</th>
+                                <th>释义</th>
+                                <th>同义词</th>
+                                <th>词组</th>
+                                <th>掌握状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    `;
+
+                    // 只显示前10行作为预览
+                    const previewRows = data.slice(0, 10);
+                    previewRows.forEach(row => {
+                        tableHTML += `
+                            <tr>
+                                <td>${row['日期'] || ''}</td>
+                                <td>${row['单词'] || ''}</td>
+                                <td>${row['释义'] || ''}</td>
+                                <td>${row['同义词'] || ''}</td>
+                                <td>${row['词组'] || ''}</td>
+                                <td>${row['掌握状态'] || ''}</td>
+                            </tr>
+                        `;
+                    });
+
+                    tableHTML += '</tbody>';
+                    previewTable.innerHTML = tableHTML;
+
+                    // 显示导入摘要
+                    const importOption = document.querySelector('input[name="import-option"]:checked').value;
+                    let summaryText = `共 ${data.length} 条数据`;
+                    
+                    if (importOption === 'merge') {
+                        // 计算将导入的新数据量
+                        let newWordCount = 0;
+                        data.forEach(row => {
+                            const date = row['日期'];
+                            const word = row['单词'];
+                            if (date && word) {
+                                if (!wordsData[date] || !wordsData[date].some(w => w.word === word)) {
+                                    newWordCount++;
+                                }
+                            }
+                        });
+                        summaryText += `，其中 ${newWordCount} 条为新数据`;
+                    }
+                    
+                    importSummary.textContent = summaryText;
+                    importPreview.classList.remove('hidden');
+                }
+
+                console.log('导入导出功能初始化完成');
+            }
 
             // 单词管理功能
             const wordForm = document.getElementById('word-form');
@@ -1382,7 +1573,8 @@
                         document.getElementById('export-modal').classList.remove('show');
                         document.body.style.overflow = '';
                     } else if (document.getElementById('import-modal').classList.contains('show')) {
-                        hideImportModal();
+                        document.getElementById('import-modal').classList.remove('show');
+                        document.body.style.overflow = '';
                     }
                 }
             });
@@ -1403,4 +1595,3 @@
     </script>
 </body>
 </html>
-
