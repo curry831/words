@@ -10,735 +10,196 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- CSP兼容性处理 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://*.firebaseio.com https://*.firebase.com https://cdn.jsdelivr.net; connect-src 'self' https://*.firebaseio.com https://*.firebase.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.gstatic.com;">
     <style>
-        :root {
-            --primary-color: #4f46e5;
-            --primary-hover: #4338ca;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --text-primary: #1f2937;
-            --text-secondary: #6b7280;
-            --bg-primary: #ffffff;
-            --bg-secondary: #f9fafb;
-            --border-color: #e5e7eb;
-        }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
         body {
             font-family: 'Noto Sans SC', sans-serif;
-            color: var(--text-primary);
-            background-color: var(--bg-secondary);
-            margin: 0;
-            padding: 0;
             overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
         .fade-in {
             animation: fadeIn 0.3s ease-out;
         }
-
         .mastered {
             text-decoration: line-through;
             opacity: 0.6;
         }
-
         #encouragement-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
             transform: translateX(-50%) translateY(-100px);
-            background-color: var(--success-color);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1000;
         }
-
         #encouragement-toast.show {
-            transform: translateX(-50%) translateY(0);
+            transform: translateX(-50%) translateY(20px);
             opacity: 1;
         }
-
         .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
             background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 999;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-            padding: 16px;
         }
-
         .modal-backdrop.show {
             opacity: 1;
             visibility: visible;
         }
-
         .modal-content {
-            background-color: var(--bg-primary);
-            border-radius: 12px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow-y: auto;
             transform: scale(0.9);
             transition: transform 0.3s ease-in-out;
-            width: 100%;
         }
-
         .modal-backdrop.show .modal-content {
             transform: scale(1);
         }
-
+        @media (max-width: 640px) {
+            button, .touch-target {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            input, textarea {
+                font-size: 16px;
+            }
+            .modal-content {
+                margin: 20px;
+                max-height: calc(100vh - 40px);
+            }
+        }
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .container {
+                padding-left: 2rem;
+                padding-right: 2rem;
+            }
+        }
+        * {
+            -webkit-overflow-scrolling: touch;
+        }
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
         .login-container {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
         }
-
-        .login-card {
-            background-color: var(--bg-primary);
-            border-radius: 12px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 100%;
-            max-width: 400px;
-            padding: 24px;
-        }
-
         .sync-status {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            padding: 8px 16px;
+            padding: 8px 12px;
             border-radius: 20px;
-            font-size: 14px;
+            font-size: 12px;
+            display: none;
             z-index: 1000;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
         }
-
         .sync-status.show {
-            opacity: 1;
-            transform: translateY(0);
+            display: block;
         }
-
         .loading-spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
             border-radius: 50%;
-            border-top: 3px solid white;
             width: 20px;
             height: 20px;
             animation: spin 1s linear infinite;
             display: inline-block;
             margin-right: 8px;
         }
-
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 加载状态样式 */
         .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.9);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 9999;
         }
-
         .loading-content {
             text-align: center;
-            padding: 20px;
         }
-
-        .loading-spinner-lg {
-            border: 4px solid rgba(79, 70, 229, 0.2);
-            border-radius: 50%;
-            border-top: 4px solid var(--primary-color);
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         /* 导入预览表格样式 */
         .import-preview-table {
             max-height: 300px;
             overflow-y: auto;
-            margin: 16px 0;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+            margin: 15px 0;
         }
-
         .import-preview-table table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
         }
-
         .import-preview-table th,
         .import-preview-table td {
-            border: 1px solid var(--border-color);
-            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            padding: 8px;
             text-align: left;
         }
-
         .import-preview-table th {
-            background-color: var(--bg-secondary);
+            background-color: #f9fafb;
             position: sticky;
             top: 0;
-            font-weight: 600;
         }
-
         .import-preview-table tr:nth-child(even) {
-            background-color: var(--bg-secondary);
+            background-color: #f9fafb;
         }
-
+        .import-preview-table tr:hover {
+            background-color: #f3f4f6;
+        }
         /* 文件拖放区域样式 */
         .file-drop-zone {
-            border: 2px dashed var(--border-color);
+            border: 2px dashed #d1d5db;
             border-radius: 8px;
-            padding: 24px;
+            padding: 20px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
-            background-color: var(--bg-secondary);
         }
-
         .file-drop-zone:hover {
-            border-color: var(--primary-color);
-            background-color: rgba(79, 70, 229, 0.05);
+            border-color: #6366f1;
+            background-color: #f9fafb;
         }
-
         .file-drop-zone.dragover {
-            border-color: var(--primary-color);
-            background-color: rgba(79, 70, 229, 0.1);
+            border-color: #6366f1;
+            background-color: #ede9fe;
         }
-
         .file-drop-zone input[type="file"] {
             display: none;
         }
-
         .error-message {
-            color: var(--danger-color);
+            color: #ef4444;
             font-size: 14px;
             margin-top: 8px;
-            padding: 12px;
-            background-color: rgba(239, 68, 68, 0.1);
-            border-radius: 6px;
+            padding: 8px;
+            background-color: #fee2e2;
+            border-radius: 4px;
             display: none;
         }
-
         .error-message.show {
             display: block;
-        }
-
-        /* 网络状态指示器 */
-        .network-indicator {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 1000;
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-        }
-
-        .network-indicator.online {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .network-indicator.offline {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .network-indicator.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* 按钮样式 */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 16px;
-            line-height: 1.5;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            min-height: 44px;
-            min-width: 44px;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-hover);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--border-color);
-        }
-
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .btn-block {
-            display: flex;
-            width: 100%;
-        }
-
-        /* 表单样式 */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            color: var(--text-primary);
-        }
-
-        .form-input,
-        .form-textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-            background-color: var(--bg-primary);
-        }
-
-        .form-input:focus,
-        .form-textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        /* 卡片样式 */
-        .card {
-            background-color: var(--bg-primary);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        /* 单词卡片样式 */
-        .word-card {
-            background-color: var(--bg-primary);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 16px;
-            margin-bottom: 16px;
-            transition: box-shadow 0.2s ease;
-        }
-
-        .word-card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-
-        .word-mastered {
-            background-color: var(--bg-secondary);
-        }
-
-        .word-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-
-        .word-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary-color);
-            margin: 0;
-        }
-
-        .word-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .word-action-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--bg-secondary);
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 18px;
-        }
-
-        .word-action-btn:hover {
-            transform: scale(1.1);
-            background-color: var(--border-color);
-        }
-
-        .word-detail {
-            margin-bottom: 6px;
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .word-detail strong {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        /* 统计卡片样式 */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background-color: var(--bg-primary);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 16px;
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-
-        /* 响应式设计 */
-        @media (max-width: 640px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .modal-content {
-                max-width: 100%;
-                margin: 0;
-                border-radius: 12px 12px 0 0;
-                max-height: 90vh;
-            }
-            
-            .modal-backdrop {
-                align-items: flex-end;
-            }
-            
-            .word-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            
-            .word-actions {
-                align-self: flex-end;
-            }
-        }
-
-        @media (min-width: 641px) and (max-width: 1024px) {
-            .stats-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
-            
-            .modal-content {
-                max-width: 600px;
-            }
-        }
-
-        @media (min-width: 1025px) {
-            .stats-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
-            
-            .modal-content {
-                max-width: 800px;
-            }
-        }
-
-        /* 导入导出按钮样式 */
-        .action-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        /* 复选框样式 */
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            margin-right: 8px;
-            width: 18px;
-            height: 18px;
-        }
-
-        .checkbox-group label {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        /* 导入选项样式 */
-        .import-options {
-            margin-bottom: 16px;
-        }
-
-        .import-option {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .import-option input[type="radio"] {
-            margin-right: 8px;
-            width: 18px;
-            height: 18px;
-        }
-
-        .import-option label {
-            font-size: 14px;
-            color: var(--text-primary);
-        }
-
-        /* 页面标题样式 */
-        .page-header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .page-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .page-subtitle {
-            font-size: 16px;
-            color: var(--text-secondary);
-        }
-
-        /* 用户信息栏样式 */
-        .user-bar {
-            background-color: var(--bg-primary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 12px 16px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .user-label {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .user-name {
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .user-actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        .user-action {
-            font-size: 14px;
-            color: var(--primary-color);
-            background: none;
-            border: none;
-            cursor: pointer;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .user-action:hover {
-            text-decoration: underline;
-        }
-
-        .user-action.danger {
-            color: var(--danger-color);
-        }
-
-        /* 容器样式 */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 16px;
-        }
-
-        /* 预览和摘要样式 */
-        .import-summary {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 16px;
-        }
-
-        .import-summary-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .import-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        /* 无数据提示样式 */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-secondary);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-state-text {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-
-        .empty-state-subtext {
-            font-size: 14px;
-            opacity: 0.7;
-        }
-
-        /* 日期标题样式 */
-        .date-header {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        /* 单词列表样式 */
-        .word-list {
-            margin-top: 16px;
-        }
-
-        /* 响应式触摸目标 */
-        @media (pointer: coarse) {
-            .btn, .word-action-btn, .user-action {
-                min-height: 44px;
-                min-width: 44px;
-            }
         }
     </style>
 </head>
 <body>
-    <!-- 网络状态指示器 -->
-    <div id="network-indicator" class="network-indicator">
-        <span id="network-status-text">网络状态</span>
-    </div>
-
     <!-- 加载遮罩 -->
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-content">
-            <div class="loading-spinner-lg"></div>
+            <div class="loading-spinner"></div>
             <p class="text-gray-700 mt-2">正在初始化应用...</p>
             <p id="loading-status" class="text-sm text-gray-500 mt-1"></p>
         </div>
@@ -746,46 +207,51 @@
 
     <!-- 登录界面 -->
     <div id="login-container" class="login-container" style="display: none;">
-        <div class="login-card">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md m-4">
             <h2 class="text-2xl font-bold text-center mb-6">📚 每日单词记录本</h2>
             
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username" class="form-label">用户名</label>
-                    <input type="text" id="username" required class="form-input" placeholder="输入您的用户名">
+            <div class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <input type="text" id="username" required
+                           class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="输入您的用户名">
                 </div>
-                <div class="form-group">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" id="password" required class="form-input" placeholder="输入您的密码">
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                    <input type="password" id="password" required
+                           class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="输入您的密码">
                 </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="use-local">
-                    <label for="use-local">使用本地存储（离线模式）</label>
+                <div class="flex items-center">
+                    <input type="checkbox" id="use-local" class="mr-2">
+                    <label for="use-local" class="text-sm text-gray-600">使用本地存储（离线模式）</label>
                 </div>
-                <button type="submit" id="login-btn" class="btn btn-primary btn-block">
+                <button id="login-btn" 
+                        class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center">
                     <span id="login-text">登录</span>
                     <div id="login-spinner" class="loading-spinner" style="display: none;"></div>
                 </button>
                 <p class="text-center text-sm text-gray-500 mt-4">
                     首次使用将自动创建账户
                 </p>
-            </form>
+            </div>
         </div>
     </div>
 
     <!-- 主应用界面 -->
     <div id="app-container" class="hidden">
         <!-- 鼓励提示容器 -->
-        <div id="encouragement-toast">
+        <div id="encouragement-toast" class="fixed top-4 left-1/2 z-50 bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
             <span id="encouragement-text"></span>
         </div>
 
         <!-- 导出模态框 -->
-        <div id="export-modal" class="modal-backdrop">
-            <div class="modal-content">
+        <div id="export-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">选择导出日期</h3>
-                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none touch-target">&times;</button>
                 </div>
                 <div id="export-options" class="space-y-2">
                     <!-- 选项将在这里动态生成 -->
@@ -794,11 +260,11 @@
         </div>
 
         <!-- 导入模态框 -->
-        <div id="import-modal" class="modal-backdrop">
-            <div class="modal-content">
+        <div id="import-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">导入Excel文件</h3>
-                    <button id="close-import-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+                    <button id="close-import-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none touch-target">&times;</button>
                 </div>
                 
                 <!-- 文件拖放区域 -->
@@ -817,15 +283,17 @@
                 <div id="import-error" class="error-message"></div>
 
                 <!-- 导入选项 -->
-                <div class="import-options">
+                <div class="mb-4">
                     <h4 class="text-sm font-medium text-gray-700 mb-2">导入选项</h4>
-                    <div class="import-option">
-                        <input type="radio" name="import-option" id="merge-option" value="merge" checked>
-                        <label for="merge-option">合并导入（保留现有数据，跳过重复单词）</label>
-                    </div>
-                    <div class="import-option">
-                        <input type="radio" name="import-option" id="replace-option" value="replace">
-                        <label for="replace-option">替换导入（删除现有数据，完全替换）</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="import-option" value="merge" checked class="mr-2">
+                            <span class="text-sm">合并导入（保留现有数据，跳过重复单词）</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="import-option" value="replace" class="mr-2">
+                            <span class="text-sm">替换导入（删除现有数据，完全替换）</span>
+                        </label>
                     </div>
                 </div>
 
@@ -837,11 +305,15 @@
                             <!-- 预览数据将在这里显示 -->
                         </table>
                     </div>
-                    <div class="import-summary">
-                        <p id="import-summary-text" class="import-summary-text"></p>
-                        <div class="import-actions">
-                            <button id="cancel-import-btn" class="btn btn-secondary">取消</button>
-                            <button id="confirm-import-btn" class="btn btn-primary">确认导入</button>
+                    <div class="flex justify-between items-center mt-4">
+                        <p id="import-summary" class="text-sm text-gray-600"></p>
+                        <div class="space-x-2">
+                            <button id="cancel-import-btn" class="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                取消
+                            </button>
+                            <button id="confirm-import-btn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
+                                确认导入
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -855,88 +327,102 @@
         </div>
 
         <!-- 用户信息栏 -->
-        <div class="user-bar">
-            <div class="user-info">
-                <span class="user-label">用户:</span>
-                <span id="current-user" class="user-name"></span>
-            </div>
-            <div class="user-actions">
-                <button id="sync-btn" class="user-action">
-                    <div id="sync-spinner" class="loading-spinner" style="display: none;"></div>
-                    <span id="sync-text">手动同步</span>
-                </button>
-                <button id="logout-btn" class="user-action danger">退出登录</button>
+        <div class="bg-white shadow-sm border-b sticky top-0 z-30">
+            <div class="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">用户:</span>
+                    <span id="current-user" class="font-medium text-gray-800"></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="sync-btn" class="text-sm text-blue-600 hover:text-blue-700 flex items-center">
+                        <div id="sync-spinner" class="loading-spinner" style="display: none;"></div>
+                        <span id="sync-text">手动同步</span>
+                    </button>
+                    <button id="logout-btn" class="text-sm text-red-600 hover:text-red-700">
+                        退出登录
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="container">
+        <div class="container mx-auto p-3 sm:p-4 md:p-6 lg:p-8 max-w-4xl">
             <!-- Header -->
-            <header class="page-header">
-                <h1 class="page-title">📚 每日单词记录本</h1>
-                <p class="page-subtitle">记录你的每一点进步</p>
+            <header class="text-center mb-6 sm:mb-8">
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">📚 每日单词记录本</h1>
+                <p class="text-gray-600 text-sm sm:text-base">记录你的每一点进步</p>
             </header>
 
             <!-- Main Content -->
             <main>
                 <!-- Add Word Form -->
-                <section class="card">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4">添加新单词</h2>
-                    <form id="word-form">
-                        <div class="form-group">
-                            <label for="word-input" class="form-label">单词</label>
-                            <input type="text" id="word-input" required class="form-input" placeholder="e.g., serendipity" autocomplete="off">
+                <section class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+                    <h2 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-4">添加新单词</h2>
+                    <form id="word-form" class="space-y-4">
+                        <div>
+                            <label for="word-input" class="block text-sm font-medium text-gray-700 mb-1">单词</label>
+                            <input type="text" id="word-input" required
+                                   class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                   placeholder="e.g., serendipity" autocomplete="off">
                         </div>
-                        <div class="form-group">
-                            <label for="meaning-input" class="form-label">释义</label>
-                            <textarea id="meaning-input" class="form-textarea" placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
+                        <div>
+                            <label for="meaning-input" class="block text-sm font-medium text-gray-700 mb-1">释义</label>
+                            <textarea id="meaning-input" rows="2"
+                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                      placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
                         </div>
-                        <div class="form-group">
-                            <label for="synonym-input" class="form-label">同义词</label>
-                            <textarea id="synonym-input" class="form-textarea" placeholder="e.g., fortune, luck, fluke"></textarea>
+                        <div>
+                            <label for="synonym-input" class="block text-sm font-medium text-gray-700 mb-1">同义词</label>
+                            <textarea id="synonym-input" rows="2"
+                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                      placeholder="e.g., fortune, luck, fluke"></textarea>
                         </div>
-                        <div class="form-group">
-                            <label for="phrase-input" class="form-label">词组</label>
-                            <textarea id="phrase-input" class="form-textarea" placeholder="e.g., a stroke of serendipity"></textarea>
+                        <div>
+                            <label for="phrase-input" class="block text-sm font-medium text-gray-700 mb-1">词组</label>
+                            <textarea id="phrase-input" rows="2"
+                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                      placeholder="e.g., a stroke of serendipity"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block">
+                        <button type="submit"
+                                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 touch-target text-base">
                             添加单词
                         </button>
                     </form>
                 </section>
 
                 <!-- Export and Import Section -->
-                <section class="card">
-                    <div class="action-buttons">
-                        <button id="export-trigger-btn" class="btn btn-success">
+                <section class="mb-6 sm:mb-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <button id="export-trigger-btn"
+                                class="bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center touch-target text-base">
                             📊 导出为Excel
                         </button>
-                        <button id="import-trigger-btn" class="btn btn-primary">
+                        <button id="import-trigger-btn"
+                                class="bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center justify-center touch-target text-base">
                             📥 导入Excel文件
                         </button>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <p class="stat-label">总词汇量</p>
-                            <p id="total-words" class="stat-value">0</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
+                            <p class="text-gray-500 text-xs sm:text-sm">总词汇量</p>
+                            <p id="total-words" class="text-xl sm:text-2xl font-bold text-indigo-600">0</p>
                         </div>
-                        <div class="stat-card">
-                            <p class="stat-label">学习天数</p>
-                            <p id="study-days" class="stat-value">0</p>
+                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
+                            <p class="text-gray-500 text-xs sm:text-sm">学习天数</p>
+                            <p id="study-days" class="text-2xl font-bold text-green-600">0</p>
                         </div>
-                        <div class="stat-card">
-                            <p class="stat-label">今日新词</p>
-                            <p id="today-words" class="stat-value">0</p>
+                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
+                            <p class="text-gray-500 text-xs sm:text-sm">今日新词</p>
+                            <p id="today-words" class="text-xl sm:text-2xl font-bold text-blue-600">0</p>
                         </div>
-                        <div class="stat-card">
-                            <p class="stat-label">已掌握</p>
-                            <p id="mastered-words" class="stat-value">0</p>
+                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
+                            <p class="text-gray-500 text-xs sm:text-sm">已掌握</p>
+                            <p id="mastered-words" class="text-xl sm:text-2xl font-bold text-purple-600">0</p>
                         </div>
                     </div>
                 </section>
 
                 <!-- Word List -->
-                <section id="word-list-container" class="word-list">
+                <section id="word-list-container" class="space-y-4 sm:space-y-6">
                     <!-- Words will be dynamically inserted here -->
                 </section>
             </main>
@@ -952,237 +438,72 @@
         // Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyBPLuMktx7vBuqmh6KzIyRlNHK4yh4j5OY",
-            authDomain: "words-43d1b.firebaseapp.com",
-            databaseURL: "https://words-43d1b-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "words-43d1b",
-            storageBucket: "words-43d1b.firebasestorage.app",
-            messagingSenderId: "992209854334",
+            authDomain: "words-43d1b.firebaseapp.com"，
+            databaseURL: "https://words-43d1b-default-rtdb.asia-southeast1.firebasedatabase.app"，
+            projectId: "words-43d1b"，
+            storageBucket: "words-43d1b.firebasestorage.app"，
+            messagingSenderId: "992209854334"，
             appId: "1:992209854334:web:e862a34544b49a243e1d2f",
             measurementId: "G-982EDQG7X0"
         };
 
-        // 增强的 Firebase SDK 加载器
+        // Firebase SDK 加载器
         class FirebaseLoader {
             constructor() {
-                this.loadingOverlay = document.getElementById('loading-overlay');
-                this.loadingStatus = document.getElementById('loading-status');
-                this.retryCount = 0;
-                this.maxRetries = 3;
-                this.loadTimeout = 15000; // 15秒超时
-                this.isTablet = this.detectTablet();
-                this.networkIndicator = document.getElementById('network-indicator');
-                this.networkStatusText = document.getElementById('network-status-text');
-                
-                // 初始化网络状态监听
-                this.initNetworkStatusListener();
-            }
-
-            // 检测是否为平板设备
-            detectTablet() {
-                const userAgent = navigator.userAgent.toLowerCase();
-                const isAndroidTablet = /android/.test(userAgent) && !/mobile/.test(userAgent);
-                const isIPad = /ipad/.test(userAgent) || (/macintosh/.test(userAgent) && 'ontouchend' in document);
-                const isTabletSize = window.innerWidth >= 768 && window.innerWidth <= 1024;
-                return isAndroidTablet || isIPad || isTabletSize;
-            }
-
-            // 初始化网络状态监听
-            initNetworkStatusListener() {
-                // 初始状态
-                this.updateNetworkStatus(navigator.onLine);
-                
-                // 监听网络状态变化
-                window.addEventListener('online', () => {
-                    this.updateNetworkStatus(true);
-                });
-                
-                window.addEventListener('offline', () => {
-                    this.updateNetworkStatus(false);
-                });
-            }
-
-            // 更新网络状态显示
-            updateNetworkStatus(isOnline) {
-                if (isOnline) {
-                    this.networkIndicator.className = 'network-indicator online show';
-                    this.networkStatusText.textContent = '网络已连接';
-                    setTimeout(() => {
-                        this.networkIndicator.classList.remove('show');
-                    }, 3000);
-                } else {
-                    this.networkIndicator.className = 'network-indicator offline show';
-                    this.networkStatusText.textContent = '网络已断开';
-                }
-            }
-
-            // 检查网络连接
-            async checkNetworkConnection() {
-                return new Promise((resolve) => {
-                    if (!navigator.onLine) {
-                        resolve(false);
-                        return;
-                    }
-                    
-                    // 尝试连接到Firebase服务器
-                    const img = new Image();
-                    img.onload = () => resolve(true);
-                    img.onerror = () => resolve(false);
-                    
-                    // 使用Firebase的图标作为测试连接
-                    img.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
-                    
-                    // 设置超时
-                    setTimeout(() => {
-                        resolve(false);
-                    }, 5000);
-                });
+                this。loadingOverlay = document.getElementById('loading-overlay');
+                this。loadingStatus = document。getElementById('loading-status');
             }
 
             async loadFirebaseSDK() {
-                this.showLoading('正在加载 Firebase SDK...');
+                this。showLoading('正在加载 Firebase SDK...');
                 
                 try {
-                    // 先检查网络连接
-                    const isNetworkAvailable = await this.checkNetworkConnection();
-                    if (!isNetworkAvailable) {
-                        throw new Error('网络连接不可用');
-                    }
+                    // 尝试加载 Firebase
+                    await this.loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js');
+                    await this。loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js');
+                    await this.loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js');
                     
-                    // 平板设备使用更长的超时时间
-                    const timeout = this.isTablet ? this.loadTimeout * 1.5 : this.loadTimeout;
+                    // 等待脚本执行
+                    await this。delay(1000);
                     
-                    // 尝试加载 Firebase，带超时控制
-                    await Promise.race([
-                        this.loadFirebaseScripts(),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Firebase SDK 加载超时')), timeout)
-                        )
-                    ]);
-                    
-                    // 平板设备等待更长时间
-                    const waitTime = this.isTablet ? 2000 : 1000;
-                    await this.delay(waitTime);
-                    
-                    // 更可靠的Firebase初始化检查
-                    const isInitialized = await this.checkFirebaseInitialized();
-                    
-                    if (isInitialized) {
-                        this.showLoading('✅ Firebase SDK 加载成功！');
-                        await this.delay(500);
-                        this.hideLoading();
+                    if (typeof firebase !== 'undefined') {
+                        this。showLoading('✅ Firebase SDK 加载成功！');
+                        await this。delay(500);
+                        this。hideLoading();
                         return true;
                     } else {
-                        throw new Error('Firebase 未正确初始化');
+                        throw new 错误('Firebase 未正确加载');
                     }
                 } catch (error) {
                     console.error('Firebase 加载失败:', error);
-                    this.retryCount++;
-                    
-                    if (this.retryCount < this.maxRetries) {
-                        this.showLoading(`⚠️ Firebase 加载失败，正在重试 (${this.retryCount}/${this.maxRetries})...`);
-                        await this.delay(2000);
-                        return this.loadFirebaseSDK();
-                    } else {
-                        this.showLoading('⚠️ Firebase 加载失败，将使用本地模式');
-                        await this.delay(2000);
-                        this.hideLoading();
-                        return false;
-                    }
+                    this。showLoading('⚠️ Firebase 加载失败，将使用本地模式');
+                    await this。delay(2000);
+                    this。hideLoading();
+                    return false;
                 }
             }
 
-            async loadFirebaseScripts() {
-                // 定义多个CDN选项
-                const cdnOptions = [
-                    // 主要CDN
-                    {
-                        app: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js',
-                        database: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js',
-                        auth: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js'
-                    },
-                    // 备用CDN
-                    {
-                        app: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-app-compat.js',
-                        database: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-database-compat.js',
-                        auth: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-auth-compat.js'
-                    }
-                ];
-                
-                let cdnIndex = 0;
-                let lastError = null;
-                
-                while (cdnIndex < cdnOptions.length) {
-                    try {
-                        await this.loadScript(cdnOptions[cdnIndex].app);
-                        await this.loadScript(cdnOptions[cdnIndex].database);
-                        await this.loadScript(cdnOptions[cdnIndex].auth);
-                        return; // 成功加载，退出循环
-                    } catch (error) {
-                        console.error(`使用CDN ${cdnIndex + 1} 加载Firebase失败:`, error);
-                        lastError = error;
-                        cdnIndex++;
-                        
-                        if (cdnIndex < cdnOptions.length) {
-                            this.showLoading(`⚠️ 切换到备用CDN...`);
-                            await this.delay(1000);
-                        }
-                    }
-                }
-                
-                // 所有CDN都失败了
-                throw lastError || new Error('所有CDN加载失败');
-            }
-
-            async loadScript(src) {
-                return new Promise((resolve, reject) => {
-                    // 检查脚本是否已加载
-                    if (document.querySelector(`script[src="${src}"]`)) {
-                        resolve();
-                        return;
-                    }
-                    
+            loadScript(src) {
+                return new Promise((resolve， reject) => {
                     const script = document.createElement('script');
-                    script.src = src;
-                    script.async = true;
+                    script。src = src;
+                    script。async = true;
                     
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                    script。onload = resolve;
+                    script.onerror = reject;
                     
                     document.head.appendChild(script);
                 });
             }
 
-            // 更可靠的Firebase初始化检查
-            async checkFirebaseInitialized() {
-                // 先检查基本对象是否存在
-                if (typeof firebase === 'undefined') {
-                    return false;
-                }
-                
-                // 然后检查关键方法是否可用
-                try {
-                    // 尝试访问firebase的关键部分，但不实际初始化
-                    const testApp = firebase.initializeApp;
-                    const testDB = firebase.database;
-                    const testAuth = firebase.auth;
-                    
-                    return typeof testApp === 'function' && 
-                           typeof testDB === 'function' && 
-                           typeof testAuth === 'function';
-                } catch (error) {
-                    console.error('Firebase检查错误:', error);
-                    return false;
-                }
-            }
-
             showLoading(message) {
                 if (this.loadingStatus) {
-                    this.loadingStatus.textContent = message;
+                    this.loadingStatus。textContent = message;
                 }
             }
 
             hideLoading() {
-                if (this.loadingOverlay) {
+                if (this。loadingOverlay) {
                     this.loadingOverlay.style.display = 'none';
                 }
             }
@@ -1196,9 +517,8 @@
         const firebaseLoader = new FirebaseLoader();
 
         // 页面加载完成后开始加载 Firebase
-        window.addEventListener('DOMContentLoaded', async () => {
+        window。addEventListener('DOMContentLoaded'， async () => {
             console.log('DOM 加载完成，开始初始化应用');
-            console.log('检测到设备类型:', firebaseLoader.isTablet ? '平板设备' : '非平板设备');
             
             // 直接初始化应用，不等待 Firebase
             const firebaseLoaded = await firebaseLoader.loadFirebaseSDK();
@@ -1238,7 +558,6 @@
 
             // DOM 元素
             const appContainer = document.getElementById('app-container');
-            const loginForm = document.getElementById('login-form');
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
             const useLocalCheckbox = document.getElementById('use-local');
@@ -1247,14 +566,14 @@
             const syncBtn = document.getElementById('sync-btn');
             const currentUserSpan = document.getElementById('current-user');
             const loginText = document.getElementById('login-text');
-            const loginSpinner = document.getElementById('login-spinner');
+            const loginSpinner = document。getElementById('login-spinner');
             const syncSpinner = document.getElementById('sync-spinner');
             const syncText = document.getElementById('sync-text');
 
             // 如果 Firebase 不可用，默认使用本地模式
             if (!firebaseAvailable) {
                 useLocalCheckbox.checked = true;
-                useLocalCheckbox.disabled = true;
+                useLocalCheckbox。disabled = true;
                 useLocalMode = true;
             }
 
@@ -1281,9 +600,7 @@
             }
 
             // 登录功能
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
+            loginBtn.addEventListener('click', async () => {
                 const username = usernameInput.value.trim();
                 const password = passwordInput.value.trim();
                 useLocalMode = useLocalCheckbox.checked || !firebaseAvailable;
@@ -1298,10 +615,10 @@
                 try {
                     loginText.style.display = 'none';
                     loginSpinner.style.display = 'inline-block';
-                    loginBtn.disabled = true;
+                    loginBtn。disabled = true;
                     
                     showSyncStatus('登录中...');
-                    console.log(`尝试登录用户: ${username}, 使用本地模式: ${useLocalMode}`);
+                    console。log(`尝试登录用户: ${username}, 使用本地模式: ${useLocalMode}`);
                     
                     if (useLocalMode) {
                         // 本地存储模式
@@ -1316,13 +633,13 @@
                         }
                         
                         // 检查用户是否存在
-                        const userRef = database.ref('users/' + username);
-                        const snapshot = await userRef.once('value');
+                        const userRef = database。ref('users/' + username);
+                        const snapshot = await userRef。once('value');
                         
-                        if (snapshot.exists()) {
+                        if (snapshot。exists()) {
                             // 用户存在，验证密码
-                            const userData = snapshot.val();
-                            if (userData.password === hashedPassword) {
+                            const userData = snapshot。val();
+                            if (userData。password === hashedPassword) {
                                 currentUser = username;
                                 await loadUserWords();
                                 showApp();
@@ -1331,10 +648,10 @@
                             }
                         } else {
                             // 新用户，创建账户
-                            await userRef.set({
-                                password: hashedPassword,
-                                createdAt: new Date().toISOString(),
-                                lastLogin: new Date().toISOString()
+                            await userRef。set({
+                                password: hashedPassword，
+                                createdAt: new Date()。toISOString()，
+                                lastLogin: new Date()。toISOString()
                             });
                             currentUser = username;
                             wordsData = {};
@@ -1342,19 +659,19 @@
                         }
                     }
                 } catch (error) {
-                    console.error('登录错误:', error);
+                    console。error('登录错误:'， error);
                     
                     // 如果云端失败，自动切换到本地模式
                     if (!useLocalMode) {
                         const useLocalFallback = confirm(
-                            `云端登录失败: ${error.message}\n\n是否使用本地存储模式？\n（数据将保存在浏览器中，无法跨设备同步）`
+                            `云端登录失败: ${error。message}\n\n是否使用本地存储模式？\n（数据将保存在浏览器中，无法跨设备同步）`
                         );
                         
                         if (useLocalFallback) {
                             useLocalMode = true;
-                            useLocalCheckbox.checked = true;
+                            useLocalCheckbox。checked = true;
                             currentUser = username;
-                            wordsData = JSON.parse(localStorage.getItem('words_' + username) || '{}');
+                            wordsData = JSON。parse(localStorage。getItem('words_' + username) || '{}');
                             showApp();
                         } else {
                             alert('登录失败，请重试');
@@ -1363,28 +680,41 @@
                         alert('登录失败: ' + error.message);
                     }
                 } finally {
-                    loginText.style.display = 'inline';
+                    loginText。style。display = 'inline';
                     loginSpinner.style.display = 'none';
                     loginBtn.disabled = false;
                     showSyncStatus('');
                 }
             });
 
+            // 添加回车键登录支持
+            passwordInput。addEventListener('keypress'， (e) => {
+                if (e。key === 'Enter') {
+                    loginBtn。click();
+                }
+            });
+
+            usernameInput.addEventListener('keypress', (e) => {
+                if (e。key === 'Enter') {
+                    passwordInput。focus();
+                }
+            });
+
             // 退出登录
-            logoutBtn.addEventListener('click', () => {
+            logoutBtn。addEventListener('click'， () => {
                 if (confirm('确定要退出登录吗？')) {
                     currentUser = null;
                     wordsData = {};
-                    loginContainer.classList.remove('hidden');
-                    appContainer.classList.add('hidden');
+                    loginContainer。classList.remove('hidden');
+                    appContainer。classList.add('hidden');
                     usernameInput.value = '';
-                    passwordInput.value = '';
-                    useLocalCheckbox.checked = false;
+                    passwordInput。value = '';
+                    useLocalCheckbox。checked = false;
                 }
             });
 
             // 手动同步
-            syncBtn.addEventListener('click', async () => {
+            syncBtn.addEventListener('click'， async () => {
                 if (useLocalMode || !firebaseAvailable) {
                     showSyncStatus('本地存储模式，无需同步', 2000);
                     return;
@@ -1456,7 +786,7 @@
                 initializeImportExport();
             }
 
-            // 初始化导入导出功能
+            // 初始化导入导出功能 - 修复作用域问题
             function initializeImportExport() {
                 console.log('初始化导入导出功能...');
                 
@@ -1471,7 +801,7 @@
                 const importFileInput = document.getElementById('import-file-input');
                 const importPreview = document.getElementById('import-preview');
                 const previewTable = document.getElementById('preview-table');
-                const importSummaryText = document.getElementById('import-summary-text');
+                const importSummary = document.getElementById('import-summary');
                 const cancelImportBtn = document.getElementById('cancel-import-btn');
                 const confirmImportBtn = document.getElementById('confirm-import-btn');
                 const importStatus = document.getElementById('import-status');
@@ -1479,14 +809,19 @@
                 const exportOptions = document.getElementById('export-options');
 
                 // 检查元素是否存在
-                if (!importTriggerBtn || !exportTriggerBtn) {
-                    console.error('找不到导入或导出按钮元素');
+                if (!importTriggerBtn) {
+                    console.error('找不到导入按钮元素');
+                    return;
+                }
+                
+                if (!exportTriggerBtn) {
+                    console.error('找不到导出按钮元素');
                     return;
                 }
 
-                console.log('绑定导入导出按钮事件...');
+                console.log('绑定导入按钮事件...');
                 
-                // 导入功能
+                // 导入功能 - 修复事件绑定
                 importTriggerBtn.addEventListener('click', function(e) {
                     console.log('导入按钮被点击');
                     e.preventDefault();
@@ -1513,7 +848,7 @@
                 });
                 
                 exportModal.addEventListener('click', (e) => {
-                    if (e.target === exportModal) {
+                    if (e。target === exportModal) {
                         hideExportModal();
                     }
                 });
@@ -1523,7 +858,7 @@
                     importFileInput.click();
                 });
 
-                fileDropZone.addEventListener('dragover', (e) => {
+                fileDropZone。addEventListener('dragover', (e) => {
                     e.preventDefault();
                     fileDropZone.classList.add('dragover');
                 });
@@ -1533,26 +868,26 @@
                 });
 
                 fileDropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    fileDropZone.classList.remove('dragover');
+                    e。preventDefault();
+                    fileDropZone。classList。remove('dragover');
                     
-                    const files = e.dataTransfer.files;
+                    const 文件 = e.dataTransfer.files;
                     if (files.length > 0) {
                         handleFileSelect(files[0]);
                     }
                 });
 
-                importFileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        handleFileSelect(e.target.files[0]);
+                importFileInput。addEventListener('change'， (e) => {
+                    if (e。target。文件.length > 0) {
+                        handleFileSelect(e。target。文件[0]);
                     }
                 });
 
                 // 确认导入
-                confirmImportBtn.addEventListener('click', async () => {
+                confirmImportBtn.addEventListener('click'， async () => {
                     if (!importData) return;
 
-                    const importOption = document.querySelector('input[name="import-option"]:checked').value;
+                    const importOption = document.querySelector('input[name="import-option"]:checked')。value;
                     
                     try {
                         importPreview.classList.add('hidden');
@@ -1578,7 +913,7 @@
 
                             // 检查是否已存在（合并模式）
                             if (importOption === 'merge') {
-                                const exists = wordsData[date].some(w => w.word === word);
+                                const exists = wordsData[date]。some(w => w.word === word);
                                 if (exists) {
                                     skipCount++;
                                     continue;
@@ -1587,7 +922,7 @@
 
                             // 创建新单词对象
                             const newWord = {
-                                id: Date.now() + Math.random(),
+                                id: Date。now() + Math.random(),
                                 word: word,
                                 meaning: row['释义'] || '',
                                 synonym: row['同义词'] || '',
@@ -1595,7 +930,7 @@
                                 mastered: row['掌握状态'] === '已掌握'
                             };
 
-                            wordsData[date].push(newWord);
+                            wordsData[date]。push(newWord);
                             importCount++;
                         }
 
@@ -1655,48 +990,48 @@
                     exportOptions.innerHTML = '';
 
                     if (dates.length === 0) {
-                        exportOptions.innerHTML = '<div class="empty-state"><p class="empty-state-text">没有可导出的数据。</p></div>';
+                        exportOptions.innerHTML = '<p class="text-gray-500 text-center py-4">没有可导出的数据。</p>';
                     } else {
                         const exportAllBtn = document.createElement('button');
                         exportAllBtn.textContent = '📦 导出全部数据';
-                        exportAllBtn.className = 'btn btn-secondary btn-block mb-2';
+                        exportAllBtn。className = 'w-full text-left p-3 sm:p-4 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-semibold transition duration-300 touch-target';
                         exportAllBtn.onclick = exportAllData;
-                        exportOptions.appendChild(exportAllBtn);
+                        exportOptions。appendChild(exportAllBtn);
                         
-                        dates.forEach(dateStr => {
+                        dates。forEach(dateStr => {
                             const dayWords = wordsData[dateStr];
                             const dateObj = new Date(dateStr + 'T00:00:00');
-                            const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+                            const formattedDate = dateObj.toLocaleDateString('zh-CN'， { year: 'numeric', month: 'long', day: 'numeric' });
                             
                             const dateBtn = document.createElement('button');
-                            dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
-                            dateBtn.className = 'btn btn-secondary btn-block mb-2';
-                            dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
+                            dateBtn.textContent = `${formattedDate} (${dayWords。length} 个单词)`;
+                            dateBtn.className = 'w-full text-left p-3 sm:p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-300 touch-target';
+                            dateBtn。onclick = () => exportDataForDate(dateStr, formattedDate);
                             exportOptions.appendChild(dateBtn);
                         });
                     }
 
-                    exportModal.classList.add('show');
-                    document.body.style.overflow = 'hidden';
+                    exportModal。classList.add('show');
+                    document.body.style。overflow = 'hidden';
                 }
 
                 function hideExportModal() {
-                    exportModal.classList.remove('show');
-                    document.body.style.overflow = '';
+                    exportModal。classList。remove('show');
+                    document。body。style。overflow = '';
                 }
 
-                function exportDataForDate(dateStr, formattedDate) {
+                function exportDataForDate(dateStr， formattedDate) {
                     const wordsForDate = wordsData[dateStr] || [];
                     const allWords = [];
 
                     wordsForDate.forEach(word => {
                         allWords.push({
-                            '日期': dateStr,
+                            '日期': dateStr，
                             '单词': word.word,
-                            '释义': word.meaning || '',
-                            '同义词': word.synonym || '',
-                            '词组': word.phrase || '',
-                            '掌握状态': word.mastered ? '已掌握' : '学习中'
+                            '释义': word。meaning || ''，
+                            '同义词': word。synonym || ''，
+                            '词组': word。phrase || ''，
+                            '掌握状态': word。mastered ? '已掌握' : '学习中'
                         });
                     });
 
@@ -1706,7 +1041,7 @@
                     }
 
                     // 创建并下载Excel文件
-                    createAndDownloadExcel(allWords, `单词记录_${dateStr}.xlsx`);
+                    createAndDownloadExcel(allWords， `单词记录_${dateStr}.xlsx`);
                     hideExportModal();
                 }
                 
@@ -1714,13 +1049,13 @@
                     const allWords = [];
 
                     for (const date in wordsData) {
-                        wordsData[date].forEach(word => {
+                        wordsData[date]。forEach(word => {
                             allWords.push({
-                                '日期': date,
+                                '日期': date，
                                 '单词': word.word,
                                 '释义': word.meaning || '',
-                                '同义词': word.synonym || '',
-                                '词组': word.phrase || '',
+                                '同义词': word。synonym || '',
+                                '词组': word.phrase || ''，
                                 '掌握状态': word.mastered ? '已掌握' : '学习中'
                             });
                         });
@@ -1737,26 +1072,26 @@
                 }
 
                 function resetImportModal() {
-                    importFileInput.value = '';
+                    importFileInput。value = '';
                     importPreview.classList.add('hidden');
-                    importStatus.classList.add('hidden');
+                    importStatus.classList。add('hidden');
                     importError.classList.remove('show');
                     importData = null;
-                    previewTable.innerHTML = '';
+                    previewTable。innerHTML = '';
                 }
 
                 // 创建并下载Excel文件
-                function createAndDownloadExcel(data, fileName) {
+                function createAndDownloadExcel(data， fileName) {
                     // 检查是否已加载XLSX库
                     if (typeof XLSX === 'undefined') {
                         // 动态加载XLSX库
                         const script = document.createElement('script');
-                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                        script。src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
                         script.onload = function() {
                             // 库加载完成后创建Excel文件
-                            createExcelFile(data, fileName);
+                            createExcelFile(data， fileName);
                         };
-                        script.onerror = function() {
+                        script。onerror = function() {
                             alert('无法加载Excel导出库，请检查网络连接');
                         };
                         document.head.appendChild(script);
@@ -1769,12 +1104,12 @@
                 // 创建Excel文件
                 function createExcelFile(data, fileName) {
                     try {
-                        const ws = XLSX.utils.json_to_sheet(data);
-                        const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "单词记录");
+                        const ws = XLSX。utils.json_to_sheet(data);
+                        const wb = XLSX。utils.book_new();
+                        XLSX。utils.book_append_sheet(wb, ws, "单词记录");
                         XLSX.writeFile(wb, fileName);
                     } catch (error) {
-                        console.error('创建Excel文件失败:', error);
+                        console。error('创建Excel文件失败:'， error);
                         alert('创建Excel文件失败: ' + error.message);
                     }
                 }
@@ -1879,15 +1214,15 @@
                         }
                         
                         // 查找单词列
-                        for (const col of columns) {
-                            if (col.includes('单词') || col.toLowerCase().includes('word')) {
+                        for (const col / columns) {
+                            if (col。includes('单词') || col.toLowerCase()。includes('word')) {
                                 wordColumn = col;
                                 break;
                             }
                         }
                         
                         if (!dateColumn || !wordColumn) {
-                            throw new Error(`Excel文件格式不正确，必须包含"日期"和"单词"列。找到的列: ${columns.join(', ')}`);
+                            throw new 错误(`Excel文件格式不正确，必须包含"日期"和"单词"列。找到的列: ${columns。join(', ')}`);
                         }
                         
                         // 标准化数据格式
@@ -1901,7 +1236,7 @@
                             newRow['单词'] = row[wordColumn];
                             
                             // 标准化其他列
-                            for (const col of columns) {
+                            for (const col / columns) {
                                 if (col === dateColumn || col === wordColumn) continue;
                                 
                                 if (col.includes('释义') || col.toLowerCase().includes('meaning')) {
@@ -1923,12 +1258,12 @@
                         
                         importData = standardizedData;
                         showImportPreview(standardizedData);
-                        importStatus.classList.add('hidden');
+                        importStatus。classList。add('hidden');
                     } catch (error) {
-                        console.error('处理Excel数据错误:', error);
+                        console。error('处理Excel数据错误:', error);
                         importStatus.classList.add('hidden');
-                        importError.textContent = '解析Excel文件失败: ' + error.message;
-                        importError.classList.add('show');
+                        importError。textContent = '解析Excel文件失败: ' + error。message;
+                        importError.classList。add('show');
                     }
                 }
 
@@ -1950,7 +1285,7 @@
                     `;
 
                     // 只显示前10行作为预览
-                    const previewRows = data.slice(0, 10);
+                    const previewRows = data。slice(0， 10);
                     previewRows.forEach(row => {
                         tableHTML += `
                             <tr>
@@ -1965,10 +1300,10 @@
                     });
 
                     tableHTML += '</tbody>';
-                    previewTable.innerHTML = tableHTML;
+                    previewTable。innerHTML = tableHTML;
 
                     // 显示导入摘要
-                    const importOption = document.querySelector('input[name="import-option"]:checked').value;
+                    const importOption = document.querySelector('input[name="import-option"]:checked')。value;
                     let summaryText = `共 ${data.length} 条数据`;
                     
                     if (importOption === 'merge') {
@@ -1986,8 +1321,8 @@
                         summaryText += `，其中 ${newWordCount} 条为新数据`;
                     }
                     
-                    importSummaryText.textContent = summaryText;
-                    importPreview.classList.remove('hidden');
+                    importSummary。textContent = summaryText;
+                    importPreview。classList.remove('hidden');
                 }
 
                 console.log('导入导出功能初始化完成');
@@ -1995,7 +1330,7 @@
 
             // 单词管理功能
             const wordForm = document.getElementById('word-form');
-            const wordInput = document.getElementById('word-input');
+            const wordInput = document。getElementById('word-input');
             const meaningInput = document.getElementById('meaning-input');
             const synonymInput = document.getElementById('synonym-input');
             const phraseInput = document.getElementById('phrase-input');
@@ -2004,11 +1339,11 @@
             const encouragementText = document.getElementById('encouragement-text');
 
             const encouragements = [
-                "太棒了！又掌握一个新单词！",
-                "坚持就是胜利！",
+                "太棒了！又掌握一个新单词！"，
+                "坚持就是胜利！"，
                 "你的词汇量正在稳步增长！",
-                "Excellent! Keep it up!",
-                "知识就是力量，你正在变强！",
+                "Excellent! Keep it up!"，
+                "知识就是力量，你正在变强！"，
                 "今天的你比昨天更博学了！",
                 "Amazing! 每一个单词都是一块基石。",
                 "持之以恒，终将大成！",
@@ -2021,13 +1356,7 @@
                 const sortedDates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
 
                 if (sortedDates.length === 0) {
-                    wordListContainer.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📚</div>
-                            <p class="empty-state-text">还没有记录任何单词</p>
-                            <p class="empty-state-subtext">快来添加第一个单词吧！</p>
-                        </div>
-                    `;
+                    wordListContainer.innerHTML = '<p class="text-center text-gray-500 bg-white p-6 sm:p-8 rounded-lg shadow">还没有记录任何单词，快来添加第一个吧！</p>';
                     updateStats();
                     return;
                 }
@@ -2038,76 +1367,76 @@
                     const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
                     
                     const daySection = document.createElement('div');
-                    daySection.className = 'card fade-in';
+                    daySection.className = 'bg-white rounded-lg shadow-md p-4 sm:p-6 fade-in';
                     
                     const dateHeader = document.createElement('h3');
-                    dateHeader.className = 'date-header';
+                    dateHeader.className = 'text-lg sm:text-xl font-semibold text-gray-700 border-b pb-2 mb-4';
                     dateHeader.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
                     daySection.appendChild(dateHeader);
 
-                    const wordList = document.createElement('div');
-                    wordList.className = 'word-list';
+                    const wordList = document.createElement('ul');
+                    wordList.className = 'space-y-3 sm:space-y-4';
 
                     dayWords.forEach(word => {
-                        const wordCard = document.createElement('div');
-                        wordCard.className = `word-card ${word.mastered ? 'word-mastered' : ''}`;
-                        wordCard.dataset.date = dateStr;
-                        wordCard.dataset.id = word.id;
+                        const wordItem = document.createElement('li');
+                        wordItem.className = `p-3 sm:p-4 border rounded-lg hover:shadow-md transition-shadow duration-300 ${word.mastered ? 'bg-gray-50' : 'bg-white'}`;
+                        wordItem.dataset.date = dateStr;
+                        wordItem.dataset.id = word.id;
 
-                        const wordHeader = document.createElement('div');
-                        wordHeader.className = 'word-header';
+                        const wordHeaderDiv = document.createElement('div');
+                        wordHeaderDiv.className = 'flex justify-between items-start mb-2';
 
                         const wordTitle = document.createElement('h4');
-                        wordTitle.className = `word-title ${word.mastered ? 'mastered' : ''}`;
+                        wordTitle.className = `text-base sm:text-lg font-bold text-indigo-800 ${word.mastered ? 'mastered' : ''}`;
                         wordTitle.textContent = word.word;
 
                         const actionButtons = document.createElement('div');
-                        actionButtons.className = 'word-actions';
+                        actionButtons.className = 'flex space-x-2';
 
                         const masterBtn = document.createElement('button');
                         masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
-                        masterBtn.className = 'word-action-btn';
+                        masterBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
                         masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
                         masterBtn.onclick = () => toggleMaster(dateStr, word.id);
 
                         const deleteBtn = document.createElement('button');
                         deleteBtn.innerHTML = '🗑️';
-                        deleteBtn.className = 'word-action-btn';
+                        deleteBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
                         deleteBtn.title = '删除';
                         deleteBtn.onclick = () => deleteWord(dateStr, word.id);
 
                         actionButtons.appendChild(masterBtn);
                         actionButtons.appendChild(deleteBtn);
-                        wordHeader.appendChild(wordTitle);
-                        wordHeader.appendChild(actionButtons);
-                        wordCard.appendChild(wordHeader);
+                        wordHeaderDiv.appendChild(wordTitle);
+                        wordHeaderDiv.appendChild(actionButtons);
+                        wordItem.appendChild(wordHeaderDiv);
                         
                         if (word.meaning) {
-                            const meaningP = document.createElement('p');
-                            meaningP.className = 'word-detail';
-                            meaningP.innerHTML = `<strong>释义:</strong> ${word.meaning}`;
-                            wordCard.appendChild(meaningP);
+                            const meaningP = document。createElement('p');
+                            meaningP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
+                            meaningP.innerHTML = `<strong>释义:</strong> ${word。meaning}`;
+                            wordItem。appendChild(meaningP);
                         }
 
-                        if (word.synonym) {
-                            const synonymP = document.createElement('p');
-                            synonymP.className = 'word-detail';
+                        if (word。synonym) {
+                            const synonymP = document。createElement('p');
+                            synonymP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
                             synonymP.innerHTML = `<strong>同义词:</strong> ${word.synonym}`;
-                            wordCard.appendChild(synonymP);
+                            wordItem。appendChild(synonymP);
                         }
 
-                        if (word.phrase) {
+                        if (word。phrase) {
                             const phraseP = document.createElement('p');
-                            phraseP.className = 'word-detail';
-                            phraseP.innerHTML = `<strong>词组:</strong> ${word.phrase}`;
-                            wordCard.appendChild(phraseP);
+                            phraseP.className = 'text-gray-500 italic text-xs sm:text-sm';
+                            phraseP。innerHTML = `<strong>词组:</strong> ${word.phrase}`;
+                            wordItem。appendChild(phraseP);
                         }
 
-                        wordList.appendChild(wordCard);
+                        wordList.appendChild(wordItem);
                     });
 
                     daySection.appendChild(wordList);
-                    wordListContainer.appendChild(daySection);
+                    wordListContainer。appendChild(daySection);
                 });
 
                 updateStats();
@@ -2120,7 +1449,7 @@
                 let todayWordsCount = 0;
 
                 const dates = Object.keys(wordsData);
-                dates.forEach(date => {
+                dates。forEach(date => {
                     const dayWords = wordsData[date];
                     totalWords += dayWords.length;
                     dayWords.forEach(w => { if (w.mastered) masteredWords++; });
@@ -2129,22 +1458,22 @@
                     }
                 });
 
-                document.getElementById('total-words').textContent = totalWords;
-                document.getElementById('study-days').textContent = dates.length;
-                document.getElementById('today-words').textContent = todayWordsCount;
+                document。getElementById('total-words')。textContent = totalWords;
+                document。getElementById('study-days')。textContent = dates.length;
+                document.getElementById('today-words')。textContent = todayWordsCount;
                 document.getElementById('mastered-words').textContent = masteredWords;
             };
 
             const addWord = async (e) => {
                 e.preventDefault();
-                const wordText = wordInput.value.trim();
+                const wordText = wordInput.value。trim();
                 const meaningText = meaningInput.value.trim();
                 const synonymText = synonymInput.value.trim();
-                const phraseText = phraseInput.value.trim();
+                const phraseText = phraseInput。value.trim();
 
                 if (!wordText) return;
 
-                const today = new Date().toISOString().split('T')[0];
+                const today = new Date()。toISOString().split('T')[0];
 
                 if (!wordsData[today]) {
                     wordsData[today] = [];
@@ -2223,45 +1552,45 @@
             };
 
             const showRandomEncouragement = () => {
-                const randomIndex = Math.floor(Math.random() * encouragements.length);
+                const randomIndex = Math。floor(Math。random() * encouragements。length);
                 const message = encouragements[randomIndex];
-                encouragementText.textContent = message;
+                encouragementText。textContent = message;
                 
-                encouragementToast.classList.add('show');
+                encouragementToast。classList。add('show');
 
                 setTimeout(() => {
-                    encouragementToast.classList.remove('show');
-                }, 3000);
+                    encouragementToast。classList。remove('show');
+                }， 3000);
             };
 
             // 事件监听器
-            wordForm.addEventListener('submit', addWord);
+            wordForm。addEventListener('submit'， addWord);
 
             // ESC 键关闭模态框
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    if (document.getElementById('export-modal').classList.contains('show')) {
-                        document.getElementById('export-modal').classList.remove('show');
-                        document.body.style.overflow = '';
-                    } else if (document.getElementById('import-modal').classList.contains('show')) {
-                        document.getElementById('import-modal').classList.remove('show');
-                        document.body.style.overflow = '';
+            document。addEventListener('keydown'， (e) => {
+                if (e。key === 'Escape') {
+                    if (document。getElementById('export-modal')。classList。contains('show')) {
+                        document。getElementById('export-modal')。classList。remove('show');
+                        document。body。style。overflow = '';
+                    } else if (document。getElementById('import-modal')。classList。contains('show')) {
+                        document。getElementById('import-modal')。classList。remove('show');
+                        document。body。style。overflow = '';
                     }
                 }
             });
 
             // 监听网络状态
-            window.addEventListener('online', () => {
+            window。addEventListener('online'， () => {
                 isOnline = true;
-                showSyncStatus('网络已连接', 2000);
+                showSyncStatus('网络已连接'， 2000);
             });
 
-            window.addEventListener('offline', () => {
+            window。addEventListener('offline'， () => {
                 isOnline = false;
-                showSyncStatus('网络已断开', 2000);
+                showSyncStatus('网络已断开'， 2000);
             });
 
-            console.log('应用初始化完成');
+            console。log('应用初始化完成');
         }
     </script>
 </body>
