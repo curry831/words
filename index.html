@@ -8,10 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS (xlsx) CDN for Excel Export/Import -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Firebase SDK - 同步加载确保正确顺序 -->
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -123,6 +119,22 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* 加载状态样式 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-content {
+            text-align: center;
+        }
         /* 导入预览表格样式 */
         .import-preview-table {
             max-height: 300px;
@@ -171,11 +183,78 @@
         .file-drop-zone input[type="file"] {
             display: none;
         }
+        /* 自动填充动画 */
+        .auto-fill {
+            animation: autoFillPulse 0.5s ease-out;
+        }
+        @keyframes autoFillPulse {
+            0% { background-color: transparent; }
+            50% { background-color: #ddd6fe; }
+            100% { background-color: transparent; }
+        }
+        /* 建议下拉框样式 */
+        .suggestions-dropdown {
+            position: absolute;
+            z-index: 50;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-top: 0.25rem;
+        }
+        .suggestion-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .suggestion-item:hover {
+            background-color: #f9fafb;
+        }
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .suggestion-word {
+            font-weight: 600;
+            color: #4f46e5;
+        }
+        .suggestion-meaning {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        /* 自动填充提示样式 */
+        .auto-fill-indicator {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #10b981;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+        }
+        .auto-fill-indicator::before {
+            content: '✓';
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="text-gray-700 mt-2">正在初始化应用...</p>
+            <p id="loading-status" class="text-sm text-gray-500 mt-1"></p>
+        </div>
+    </div>
+
     <!-- 登录界面 -->
-    <div id="login-container" class="login-container">
+    <div id="login-container" class="login-container" style="display: none;">
         <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md m-4">
             <h2 class="text-2xl font-bold text-center mb-6">📚 每日单词记录本</h2>
             
@@ -320,34 +399,41 @@
 
             <!-- Main Content -->
             <main>
-                <!-- Add Word Form -->
+                <!-- 添加单词区域 -->
                 <section class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
                     <h2 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-4">添加新单词</h2>
+                    
                     <form id="word-form" class="space-y-4">
-                        <div>
+                        <div class="relative">
                             <label for="word-input" class="block text-sm font-medium text-gray-700 mb-1">单词</label>
                             <input type="text" id="word-input" required
                                    class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                   placeholder="e.g., serendipity" autocomplete="off">
+                                   placeholder="e.g., abandon" autocomplete="off">
+                            <div id="word-suggestions" class="suggestions-dropdown hidden"></div>
+                            <div id="auto-fill-indicator" class="auto-fill-indicator hidden">已自动填充</div>
                         </div>
-                        <div>
-                            <label for="meaning-input" class="block text-sm font-medium text-gray-700 mb-1">释义</label>
-                            <textarea id="meaning-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="meaning-input" class="block text-sm font-medium text-gray-700 mb-1">释义</label>
+                                <textarea id="meaning-input" rows="2"
+                                          class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                          placeholder="e.g., 放弃；抛弃；遗弃"></textarea>
+                            </div>
+                            <div>
+                                <label for="synonym-input" class="block text-sm font-medium text-gray-700 mb-1">同义词</label>
+                                <textarea id="synonym-input" rows="2"
+                                          class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                          placeholder="e.g., desert, forsake, leave"></textarea>
+                            </div>
+                            <div>
+                                <label for="phrase-input" class="block text-sm font-medium text-gray-700 mb-1">词组</label>
+                                <textarea id="phrase-input" rows="2"
+                                          class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                                          placeholder="e.g., abandon oneself to"></textarea>
+                            </div>
                         </div>
-                        <div>
-                            <label for="synonym-input" class="block text-sm font-medium text-gray-700 mb-1">同义词</label>
-                            <textarea id="synonym-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., fortune, luck, fluke"></textarea>
-                        </div>
-                        <div>
-                            <label for="phrase-input" class="block text-sm font-medium text-gray-700 mb-1">词组</label>
-                            <textarea id="phrase-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., a stroke of serendipity"></textarea>
-                        </div>
+                        
                         <button type="submit"
                                 class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 touch-target text-base">
                             添加单词
@@ -401,873 +487,2557 @@
     </div>
 
     <script>
-        // Firebase 配置
-        const firebaseConfig = {
-            apiKey: "AIzaSyBPLuMktx7vBuqmh6KzIyRlNHK4yh4j5OY",
-            authDomain: "words-43d1b.firebaseapp.com",
-            databaseURL: "https://words-43d1b-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "words-43d1b",
-            storageBucket: "words-43d1b.firebasestorage.app",
-            messagingSenderId: "992209854334",
-            appId: "1:992209854334:web:e862a34544b49a243e1d2f",
-            measurementId: "G-982EDQG7X0"
-        };
-
-        // 等待页面完全加载
-        window.addEventListener('load', function() {
-            console.log('页面完全加载');
-            
-            // 检查 Firebase 是否已加载
-            if (typeof firebase === 'undefined') {
-                alert('Firebase SDK 未加载，请刷新页面重试');
-                return;
-            }
-            
-            console.log('Firebase SDK 已加载');
-            
-            // 初始化应用
-            initializeApp();
-        });
-
-        function initializeApp() {
-            // 初始化 Firebase
-            let database = null;
-            try {
-                firebase.initializeApp(firebaseConfig);
-                database = firebase.database();
-                console.log('Firebase 初始化成功');
-            } catch (error) {
-                console.error('Firebase 初始化失败:', error);
-            }
-
-            // 应用状态
-            let currentUser = null;
-            let wordsData = {};
-            let isOnline = navigator.onLine;
-            let useLocalMode = false;
-            let importData = null;
-
-            // DOM 元素
-            const loginContainer = document.getElementById('login-container');
-            const appContainer = document.getElementById('app-container');
-            const usernameInput = document.getElementById('username');
-            const passwordInput = document.getElementById('password');
-            const useLocalCheckbox = document.getElementById('use-local');
-            const loginBtn = document.getElementById('login-btn');
-            const logoutBtn = document.getElementById('logout-btn');
-            const syncBtn = document.getElementById('sync-btn');
-            const currentUserSpan = document.getElementById('current-user');
-            const loginText = document.getElementById('login-text');
-            const loginSpinner = document.getElementById('login-spinner');
-            const syncSpinner = document.getElementById('sync-spinner');
-            const syncText = document.getElementById('sync-text');
-
-            // 导入相关DOM元素
-            const importModal = document.getElementById('import-modal');
-            const closeImportModalBtn = document.getElementById('close-import-modal-btn');
-            const importTriggerBtn = document.getElementById('import-trigger-btn');
-            const fileDropZone = document.getElementById('file-drop-zone');
-            const importFileInput = document.getElementById('import-file-input');
-            const importPreview = document.getElementById('import-preview');
-            const previewTable = document.getElementById('preview-table');
-            const importSummary = document.getElementById('import-summary');
-            const cancelImportBtn = document.getElementById('cancel-import-btn');
-            const confirmImportBtn = document.getElementById('confirm-import-btn');
-            const importStatus = document.getElementById('import-status');
-
-            // 显示同步状态
-            function showSyncStatus(message, duration = 2000) {
-                const syncStatus = document.getElementById('sync-status');
-                const syncStatusText = document.getElementById('sync-status-text');
-                syncStatusText.textContent = message;
-                syncStatus.classList.add('show');
-                setTimeout(() => {
-                    syncStatus.classList.remove('show');
-                }, duration);
-            }
-
-            // 简单的密码哈希函数
-            function hashPassword(password) {
-                let hash = 0;
-                for (let i = 0; i < password.length; i++) {
-                    const char = password.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
-                }
-                return hash.toString();
-            }
-
-            // 登录功能
-            loginBtn.addEventListener('click', async () => {
-                const username = usernameInput.value.trim();
-                const password = passwordInput.value.trim();
-                useLocalMode = useLocalCheckbox.checked;
-
-                if (!username || !password) {
-                    alert('请输入用户名和密码');
-                    return;
-                }
-
-                const hashedPassword = hashPassword(password);
-                
-                try {
-                    loginText.style.display = 'none';
-                    loginSpinner.style.display = 'inline-block';
-                    loginBtn.disabled = true;
-                    
-                    showSyncStatus('登录中...');
-                    console.log(`尝试登录用户: ${username}, 使用本地模式: ${useLocalMode}`);
-                    
-                    if (useLocalMode) {
-                        // 本地存储模式
-                        currentUser = username;
-                        wordsData = JSON.parse(localStorage.getItem('words_' + username) || '{}');
-                        console.log('本地存储模式登录成功');
-                        showApp();
-                    } else {
-                        // 云端模式
-                        if (!database) {
-                            throw new Error('Firebase 未初始化');
-                        }
-                        
-                        // 检查用户是否存在
-                        const userRef = database.ref('users/' + username);
-                        const snapshot = await userRef.once('value');
-                        
-                        if (snapshot.exists()) {
-                            // 用户存在，验证密码
-                            const userData = snapshot.val();
-                            if (userData.password === hashedPassword) {
-                                currentUser = username;
-                                await loadUserWords();
-                                showApp();
-                            } else {
-                                alert('密码错误');
-                            }
-                        } else {
-                            // 新用户，创建账户
-                            await userRef.set({
-                                password: hashedPassword,
-                                createdAt: new Date().toISOString(),
-                                lastLogin: new Date().toISOString()
-                            });
-                            currentUser = username;
-                            wordsData = {};
-                            showApp();
-                        }
-                    }
-                } catch (error) {
-                    console.error('登录错误:', error);
-                    alert('登录失败: ' + error.message);
-                } finally {
-                    loginText.style.display = 'inline';
-                    loginSpinner.style.display = 'none';
-                    loginBtn.disabled = false;
-                    showSyncStatus('');
-                }
-            });
-
-            // 退出登录
-            logoutBtn.addEventListener('click', () => {
-                if (confirm('确定要退出登录吗？')) {
-                    currentUser = null;
-                    wordsData = {};
-                    loginContainer.classList.remove('hidden');
-                    appContainer.classList.add('hidden');
-                    usernameInput.value = '';
-                    passwordInput.value = '';
-                    useLocalCheckbox.checked = false;
-                }
-            });
-
-            // 手动同步
-            syncBtn.addEventListener('click', async () => {
-                if (useLocalMode) {
-                    showSyncStatus('本地存储模式，无需同步', 2000);
-                    return;
-                }
-                
-                if (!isOnline) {
-                    showSyncStatus('网络未连接', 2000);
-                    return;
-                }
-                await saveUserWords();
-            });
-
-            // 加载用户数据
-            async function loadUserWords() {
-                if (!currentUser) return;
-                
-                if (useLocalMode) {
-                    wordsData = JSON.parse(localStorage.getItem('words_' + currentUser) || '{}');
-                    return;
-                }
-                
-                try {
-                    showSyncStatus('加载数据...');
-                    const wordsRef = database.ref('words/' + currentUser);
-                    const snapshot = await wordsRef.once('value');
-                    wordsData = snapshot.val() || {};
-                    
-                    // 更新最后登录时间
-                    database.ref('users/' + currentUser + '/lastLogin').set(new Date().toISOString());
-                } catch (error) {
-                    console.error('加载数据错误:', error);
-                    showSyncStatus('加载数据失败', 2000);
-                    wordsData = {};
-                }
-            }
-
-            // 保存用户数据
-            async function saveUserWords() {
-                if (!currentUser) return;
-                
-                if (useLocalMode) {
-                    localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
-                    showSyncStatus('已保存到本地', 1500);
-                    return;
-                }
-                
-                try {
-                    syncText.style.display = 'none';
-                    syncSpinner.style.display = 'inline-block';
-                    showSyncStatus('保存中...');
-                    
-                    await database.ref('words/' + currentUser).set(wordsData);
-                    showSyncStatus('已同步到云端', 1500);
-                } catch (error) {
-                    console.error('保存数据错误:', error);
-                    showSyncStatus('同步失败', 2000);
-                } finally {
-                    syncText.style.display = 'inline';
-                    syncSpinner.style.display = 'none';
-                }
-            }
-
-            // 显示主应用
-            function showApp() {
-                loginContainer.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                currentUserSpan.textContent = currentUser + (useLocalMode ? ' (本地模式)' : '');
-                renderWords();
-                initializeImportExport();
-            }
-
-            // 初始化导入导出功能
-            function initializeImportExport() {
-                // 导入功能
-                importTriggerBtn.addEventListener('click', showImportModal);
-                closeImportModalBtn.addEventListener('click', hideImportModal);
-                cancelImportBtn.addEventListener('click', hideImportModal);
-                
-                // 文件拖放处理
-                fileDropZone.addEventListener('click', () => {
-                    importFileInput.click();
-                });
-
-                fileDropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    fileDropZone.classList.add('dragover');
-                });
-
-                fileDropZone.addEventListener('dragleave', () => {
-                    fileDropZone.classList.remove('dragover');
-                });
-
-                fileDropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    fileDropZone.classList.remove('dragover');
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        handleFileSelect(files[0]);
-                    }
-                });
-
-                importFileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        handleFileSelect(e.target.files[0]);
-                    }
-                });
-
-                // 确认导入
-                confirmImportBtn.addEventListener('click', async () => {
-                    if (!importData) return;
-
-                    const importOption = document.querySelector('input[name="import-option"]:checked').value;
-                    
-                    try {
-                        importPreview.classList.add('hidden');
-                        importStatus.classList.remove('hidden');
-
-                        if (importOption === 'replace') {
-                            wordsData = {};
-                        }
-
-                        // 处理导入数据
-                        let importCount = 0;
-                        let skipCount = 0;
-
-                        for (const row of importData) {
-                            const date = row['日期'];
-                            const word = row['单词'];
-                            
-                            if (!date || !word) continue;
-
-                            if (!wordsData[date]) {
-                                wordsData[date] = [];
-                            }
-
-                            // 检查是否已存在（合并模式）
-                            if (importOption === 'merge') {
-                                const exists = wordsData[date].some(w => w.word === word);
-                                if (exists) {
-                                    skipCount++;
-                                    continue;
-                                }
-                            }
-
-                            // 创建新单词对象
-                            const newWord = {
-                                id: Date.now() + Math.random(),
-                                word: word,
-                                meaning: row['释义'] || '',
-                                synonym: row['同义词'] || '',
-                                phrase: row['词组'] || '',
-                                mastered: row['掌握状态'] === '已掌握'
-                            };
-
-                            wordsData[date].push(newWord);
-                            importCount++;
-                        }
-
-                        // 保存到云端或本地
-                        await saveUserWords();
-                        
-                        // 显示结果
-                        let message = `成功导入 ${importCount} 条数据`;
-                        if (skipCount > 0) {
-                            message += `，跳过 ${skipCount} 条重复数据`;
-                        }
-                        
-                        showSyncStatus(message, 3000);
-                        
-                        // 刷新显示
-                        renderWords();
-                        
-                        // 关闭模态框
-                        setTimeout(() => {
-                            hideImportModal();
-                        }, 1000);
-                        
-                    } catch (error) {
-                        console.error('导入数据错误:', error);
-                        alert('导入失败，请重试');
-                    } finally {
-                        importStatus.classList.add('hidden');
-                    }
-                });
-
-                // 导出功能
-                const exportTriggerBtn = document.getElementById('export-trigger-btn');
-                const exportModal = document.getElementById('export-modal');
-                const closeModalBtn = document.getElementById('close-modal-btn');
-                const exportOptions = document.getElementById('export-options');
-
-                exportTriggerBtn.addEventListener('click', showExportModal);
-                closeModalBtn.addEventListener('click', hideExportModal);
-                exportModal.addEventListener('click', (e) => {
-                    if (e.target === exportModal) {
-                        hideExportModal();
-                    }
-                });
-
-                function showExportModal() {
-                    const dates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
-                    exportOptions.innerHTML = '';
-
-                    if (dates.length === 0) {
-                        exportOptions.innerHTML = '<p class="text-gray-500 text-center py-4">没有可导出的数据。</p>';
-                    } else {
-                        const exportAllBtn = document.createElement('button');
-                        exportAllBtn.textContent = '📦 导出全部数据';
-                        exportAllBtn.className = 'w-full text-left p-3 sm:p-4 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-semibold transition duration-300 touch-target';
-                        exportAllBtn.onclick = exportAllData;
-                        exportOptions.appendChild(exportAllBtn);
-                        
-                        dates.forEach(dateStr => {
-                            const dayWords = wordsData[dateStr];
-                            const dateObj = new Date(dateStr + 'T00:00:00');
-                            const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
-                            
-                            const dateBtn = document.createElement('button');
-                            dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
-                            dateBtn.className = 'w-full text-left p-3 sm:p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-300 touch-target';
-                            dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
-                            exportOptions.appendChild(dateBtn);
-                        });
-                    }
-
-                    exportModal.classList.add('show');
-                    document.body.style.overflow = 'hidden';
-                }
-
-                function hideExportModal() {
-                    exportModal.classList.remove('show');
-                    document.body.style.overflow = '';
-                }
-
-                function exportDataForDate(dateStr, formattedDate) {
-                    const wordsForDate = wordsData[dateStr] || [];
-                    const allWords = [];
-
-                    wordsForDate.forEach(word => {
-                        allWords.push({
-                            '日期': dateStr,
-                            '单词': word.word,
-                            '释义': word.meaning || '',
-                            '同义词': word.synonym || '',
-                            '词组': word.phrase || '',
-                            '掌握状态': word.mastered ? '已掌握' : '学习中'
-                        });
-                    });
-
-                    if (allWords.length === 0) {
-                        alert('该日期没有数据可以导出！');
-                        return;
-                    }
-
-                    const ws = XLSX.utils.json_to_sheet(allWords);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, "单词记录");
-                    
-                    const fileName = `单词记录_${dateStr}.xlsx`;
-                    XLSX.writeFile(wb, fileName);
-                    hideExportModal();
-                }
-                
-                function exportAllData() {
-                    const allWords = [];
-
-                    for (const date in wordsData) {
-                        wordsData[date].forEach(word => {
-                            allWords.push({
-                                '日期': date,
-                                '单词': word.word,
-                                '释义': word.meaning || '',
-                                '同义词': word.synonym || '',
-                                '词组': word.phrase || '',
-                                '掌握状态': word.mastered ? '已掌握' : '学习中'
-                            });
-                        });
-                    }
-
-                    if (allWords.length === 0) {
-                        alert('没有数据可以导出！');
-                        return;
-                    }
-
-                    const ws = XLSX.utils.json_to_sheet(allWords);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, "单词记录");
-
-                    const today = new Date().toISOString().split('T')[0];
-                    const fileName = `我的单词记录_全部_${today}.xlsx`;
-                    XLSX.writeFile(wb, fileName);
-                    hideExportModal();
-                }
-            }
-
-            function showImportModal() {
-                importModal.classList.add('show');
-                document.body.style.overflow = 'hidden';
-                resetImportModal();
-            }
-
-            function hideImportModal() {
-                importModal.classList.remove('show');
-                document.body.style.overflow = '';
-                resetImportModal();
-            }
-
-            function resetImportModal() {
-                importFileInput.value = '';
-                importPreview.classList.add('hidden');
-                importStatus.classList.add('hidden');
-                importData = null;
-                previewTable.innerHTML = '';
-            }
-
-            // 处理文件选择
-            function handleFileSelect(file) {
-                if (!file.name.match(/\.(xlsx|xls)$/)) {
-                    alert('请选择Excel文件（.xlsx 或 .xls）');
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                        
-                        if (jsonData.length === 0) {
-                            alert('Excel文件中没有数据');
-                            return;
-                        }
-
-                        // 验证数据格式
-                        const requiredFields = ['日期', '单词'];
-                        const firstRow = jsonData[0];
-                        const hasRequiredFields = requiredFields.every(field => field in firstRow);
-                        
-                        if (!hasRequiredFields) {
-                            alert('Excel文件格式不正确，必须包含"日期"和"单词"列');
-                            return;
-                        }
-
-                        importData = jsonData;
-                        showImportPreview(jsonData);
-                    } catch (error) {
-                        console.error('读取Excel文件错误:', error);
-                        alert('读取Excel文件失败，请检查文件格式');
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            }
-
-            // 显示导入预览
-            function showImportPreview(data) {
-                // 创建预览表格
-                let tableHTML = `
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>单词</th>
-                            <th>释义</th>
-                            <th>同义词</th>
-                            <th>词组</th>
-                            <th>掌握状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                `;
-
-                // 只显示前10行作为预览
-                const previewRows = data.slice(0, 10);
-                previewRows.forEach(row => {
-                    tableHTML += `
-                        <tr>
-                            <td>${row['日期'] || ''}</td>
-                            <td>${row['单词'] || ''}</td>
-                            <td>${row['释义'] || ''}</td>
-                            <td>${row['同义词'] || ''}</td>
-                            <td>${row['词组'] || ''}</td>
-                            <td>${row['掌握状态'] || ''}</td>
-                        </tr>
-                    `;
-                });
-
-                tableHTML += '</tbody>';
-                previewTable.innerHTML = tableHTML;
-
-                // 显示导入摘要
-                const importOption = document.querySelector('input[name="import-option"]:checked').value;
-                let summaryText = `共 ${data.length} 条数据`;
-                
-                if (importOption === 'merge') {
-                    // 计算将导入的新数据量
-                    let newWordCount = 0;
-                    data.forEach(row => {
-                        const date = row['日期'];
-                        const word = row['单词'];
-                        if (date && word) {
-                            if (!wordsData[date] || !wordsData[date].some(w => w.word === word)) {
-                                newWordCount++;
-                            }
-                        }
-                    });
-                    summaryText += `，其中 ${newWordCount} 条为新数据`;
-                }
-                
-                importSummary.textContent = summaryText;
-                importPreview.classList.remove('hidden');
-            }
-
-            // 监听导入选项变化
-            document.querySelectorAll('input[name="import-option"]').forEach(radio => {
-                radio.addEventListener('change', () => {
-                    if (importData) {
-                        showImportPreview(importData);
-                    }
-                });
-            });
-
-            // 单词管理功能
-            const wordForm = document.getElementById('word-form');
-            const wordInput = document.getElementById('word-input');
-            const meaningInput = document.getElementById('meaning-input');
-            const synonymInput = document.getElementById('synonym-input');
-            const phraseInput = document.getElementById('phrase-input');
-            const wordListContainer = document.getElementById('word-list-container');
-            const encouragementToast = document.getElementById('encouragement-toast');
-            const encouragementText = document.getElementById('encouragement-text');
-
-            const encouragements = [
-                "太棒了！又掌握一个新单词！",
-                "坚持就是胜利！",
-                "你的词汇量正在稳步增长！",
-                "Excellent! Keep it up!",
-                "知识就是力量，你正在变强！",
-                "今天的你比昨天更博学了！",
-                "Amazing! 每一个单词都是一块基石。",
-                "持之以恒，终将大成！",
-                "你的努力，时间看得见！",
-                "又向目标迈进了一步！"
-            ];
-
-            const renderWords = () => {
-                wordListContainer.innerHTML = '';
-                const sortedDates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
-
-                if (sortedDates.length === 0) {
-                    wordListContainer.innerHTML = '<p class="text-center text-gray-500 bg-white p-6 sm:p-8 rounded-lg shadow">还没有记录任何单词，快来添加第一个吧！</p>';
-                    updateStats();
-                    return;
-                }
-
-                sortedDates.forEach(dateStr => {
-                    const dayWords = wordsData[dateStr];
-                    const dateObj = new Date(dateStr + 'T00:00:00');
-                    const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-                    
-                    const daySection = document.createElement('div');
-                    daySection.className = 'bg-white rounded-lg shadow-md p-4 sm:p-6 fade-in';
-                    
-                    const dateHeader = document.createElement('h3');
-                    dateHeader.className = 'text-lg sm:text-xl font-semibold text-gray-700 border-b pb-2 mb-4';
-                    dateHeader.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
-                    daySection.appendChild(dateHeader);
-
-                    const wordList = document.createElement('ul');
-                    wordList.className = 'space-y-3 sm:space-y-4';
-
-                    dayWords.forEach(word => {
-                        const wordItem = document.createElement('li');
-                        wordItem.className = `p-3 sm:p-4 border rounded-lg hover:shadow-md transition-shadow duration-300 ${word.mastered ? 'bg-gray-50' : 'bg-white'}`;
-                        wordItem.dataset.date = dateStr;
-                        wordItem.dataset.id = word.id;
-
-                        const wordHeaderDiv = document.createElement('div');
-                        wordHeaderDiv.className = 'flex justify-between items-start mb-2';
-
-                        const wordTitle = document.createElement('h4');
-                        wordTitle.className = `text-base sm:text-lg font-bold text-indigo-800 ${word.mastered ? 'mastered' : ''}`;
-                        wordTitle.textContent = word.word;
-
-                        const actionButtons = document.createElement('div');
-                        actionButtons.className = 'flex space-x-2';
-
-                        const masterBtn = document.createElement('button');
-                        masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
-                        masterBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
-                        masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
-                        masterBtn.onclick = () => toggleMaster(dateStr, word.id);
-
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.innerHTML = '🗑️';
-                        deleteBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
-                        deleteBtn.title = '删除';
-                        deleteBtn.onclick = () => deleteWord(dateStr, word.id);
-
-                        actionButtons.appendChild(masterBtn);
-                        actionButtons.appendChild(deleteBtn);
-                        wordHeaderDiv.appendChild(wordTitle);
-                        wordHeaderDiv.appendChild(actionButtons);
-                        wordItem.appendChild(wordHeaderDiv);
-                        
-                        if (word.meaning) {
-                            const meaningP = document.createElement('p');
-                            meaningP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
-                            meaningP.innerHTML = `<strong>释义:</strong> ${word.meaning}`;
-                            wordItem.appendChild(meaningP);
-                        }
-
-                        if (word.synonym) {
-                            const synonymP = document.createElement('p');
-                            synonymP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
-                            synonymP.innerHTML = `<strong>同义词:</strong> ${word.synonym}`;
-                            wordItem.appendChild(synonymP);
-                        }
-
-                        if (word.phrase) {
-                            const phraseP = document.createElement('p');
-                            phraseP.className = 'text-gray-500 italic text-xs sm:text-sm';
-                            phraseP.innerHTML = `<strong>词组:</strong> ${word.phrase}`;
-                            wordItem.appendChild(phraseP);
-                        }
-
-                        wordList.appendChild(wordItem);
-                    });
-
-                    daySection.appendChild(wordList);
-                    wordListContainer.appendChild(daySection);
-                });
-
-                updateStats();
-            };
-            
-            const updateStats = () => {
-                let totalWords = 0;
-                let masteredWords = 0;
-                const today = new Date().toISOString().split('T')[0];
-                let todayWordsCount = 0;
-
-                const dates = Object.keys(wordsData);
-                dates.forEach(date => {
-                    const dayWords = wordsData[date];
-                    totalWords += dayWords.length;
-                    dayWords.forEach(w => { if (w.mastered) masteredWords++; });
-                    if (date === today) {
-                        todayWordsCount = dayWords.length;
-                    }
-                });
-
-                document.getElementById('total-words').textContent = totalWords;
-                document.getElementById('study-days').textContent = dates.length;
-                document.getElementById('today-words').textContent = todayWordsCount;
-                document.getElementById('mastered-words').textContent = masteredWords;
-            };
-
-            const addWord = async (e) => {
-                e.preventDefault();
-                const wordText = wordInput.value.trim();
-                const meaningText = meaningInput.value.trim();
-                const synonymText = synonymInput.value.trim();
-                const phraseText = phraseInput.value.trim();
-
-                if (!wordText) return;
-
-                const today = new Date().toISOString().split('T')[0];
-
-                if (!wordsData[today]) {
-                    wordsData[today] = [];
-                }
-
-                const newWord = {
-                    id: Date.now(),
-                    word: wordText,
-                    meaning: meaningText,
-                    synonym: synonymText,
-                    phrase: phraseText,
-                    mastered: false
-                };
-
-                wordsData[today].push(newWord);
-                
-                // 先更新UI，再保存
-                wordForm.reset();
-                wordInput.focus();
-                renderWords();
-                showRandomEncouragement();
-                
-                // 保存到云端或本地
-                if (useLocalMode) {
-                    localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
-                    showSyncStatus('已保存到本地', 1500);
-                } else {
-                    if (isOnline) {
-                        await saveUserWords();
-                    } else {
-                        showSyncStatus('离线模式，数据将在网络恢复后同步', 3000);
-                    }
-                }
-            };
-
-            const deleteWord = async (date, id) => {
-                const idStr = String(id);
-                if (confirm('确定要删除这个单词吗？')) {
-                    wordsData[date] = wordsData[date].filter(w => String(w.id) !== idStr);
-                    if (wordsData[date].length === 0) {
-                        delete wordsData[date];
-                    }
-                    renderWords();
-                    
-                    if (useLocalMode) {
-                        localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
-                        showSyncStatus('已保存到本地', 1500);
-                    } else {
-                        if (isOnline) {
-                            await saveUserWords();
-                        } else {
-                            showSyncStatus('离线模式，数据将在网络恢复后同步', 3000);
-                        }
-                    }
-                }
-            };
-
-            const toggleMaster = async (date, id) => {
-                const idStr = String(id);
-                const word = wordsData[date].find(w => String(w.id) === idStr);
-                if (word) {
-                    word.mastered = !word.mastered;
-                    renderWords();
-                    
-                    if (useLocalMode) {
-                        localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
-                        showSyncStatus('已保存到本地', 1500);
-                    } else {
-                        if (isOnline) {
-                            await saveUserWords();
-                        } else {
-                            showSyncStatus('离线模式，数据将在网络恢复后同步', 3000);
-                        }
-                    }
-                }
-            };
-
-            const showRandomEncouragement = () => {
-                const randomIndex = Math.floor(Math.random() * encouragements.length);
-                const message = encouragements[randomIndex];
-                encouragementText.textContent = message;
-                
-                encouragementToast.classList.add('show');
-
-                setTimeout(() => {
-                    encouragementToast.classList.remove('show');
-                }, 3000);
-            };
-
-            // 事件监听器
-            wordForm.addEventListener('submit', addWord);
-
-            // ESC 键关闭模态框
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    if (document.getElementById('export-modal').classList.contains('show')) {
-                        document.getElementById('export-modal').classList.remove('show');
-                        document.body.style.overflow = '';
-                    } else if (importModal.classList.contains('show')) {
-                        hideImportModal();
-                    }
-                }
-            });
-
-            // 监听网络状态
-            window.addEventListener('online', () => {
-                isOnline = true;
-                showSyncStatus('网络已连接', 2000);
-            });
-
-            window.addEventListener('offline', () => {
-                isOnline = false;
-                showSyncStatus('网络已断开', 2000);
-            });
-
-            console.log('应用初始化完成');
-        }
-    </script>
-</body>
-</html>
+        // 六级词汇词典数据
+        const cet6Dictionary = {
+            'abandon': {
+                meaning: '放弃；抛弃；遗弃',
+                synonym: 'desert, forsake, leave',
+                phrase: 'abandon oneself to'
+            },
+            'abnormal': {
+                meaning: '反常的；不正常的',
+                synonym: 'unusual, irregular, strange',
+                phrase: 'abnormal behavior'
+            },
+            'abolish': {
+                meaning: '废除；取消',
+                synonym: 'eliminate, cancel, remove',
+                phrase: 'abolish slavery'
+            },
+            'abort': {
+                meaning: '中止；流产；夭折',
+                synonym: 'terminate, cancel, stop',
+                phrase: 'abort mission'
+            },
+            'abrupt': {
+                meaning: '突然的；唐突的',
+                synonym: 'sudden, abrupt, sharp',
+                phrase: 'abrupt change'
+            },
+            'absolute': {
+                meaning: '绝对的；完全的',
+                synonym: 'complete, total, entire',
+                phrase: 'absolute power'
+            },
+            'absorb': {
+                meaning: '吸收；吸引；使专心',
+                synonym: 'take in, soak up, assimilate',
+                phrase: 'absorb knowledge'
+            },
+            'abstract': {
+                meaning: '抽象的；理论上的',
+                synonym: 'theoretical, conceptual, nonrepresentational',
+                phrase: 'abstract concept'
+            },
+            'absurd': {
+                meaning: '荒谬的；可笑的',
+                synonym: 'ridiculous, nonsensical, illogical',
+                phrase: 'absurd idea'
+            },
+            'abundance': {
+                meaning: '丰富；充裕',
+                synonym: 'plenty, wealth, profusion',
+                phrase: 'abundance of resources'
+            },
+            'abuse': {
+                meaning: '滥用；虐待；辱骂',
+                synonym: 'misuse, mistreat, exploit',
+                phrase: 'abuse power'
+            },
+            'academic': {
+                meaning: '学术的；理论的',
+                synonym: 'scholarly, educational, theoretical',
+                phrase: 'academic performance'
+            },
+            'accelerate': {
+                meaning: '加速；促进',
+                synonym: 'speed up, hasten, quicken',
+                phrase: 'accelerate development'
+            },
+            'access': {
+                meaning: '接近；通道；使用权',
+                synonym: 'entry, approach, admission',
+                phrase: 'access to information'
+            },
+            'accommodate': {
+                meaning: '容纳；适应；提供便利',
+                synonym: 'house, host, adapt',
+                phrase: 'accommodate different needs'
+            },
+            'accompany': {
+                meaning: '陪伴；伴随；为...伴奏',
+                synonym: 'escort, attend, go with',
+                phrase: 'accompany someone'
+            },
+            'accomplish': {
+                meaning: '完成；实现；达到',
+                synonym: 'achieve, complete, fulfill',
+                phrase: 'accomplish goals'
+            },
+            'account': {
+                meaning: '账户；说明；报告',
+                synonym: 'report, description, explanation',
+                phrase: 'take into account'
+            },
+            'accumulate': {
+                meaning: '积累；聚集；堆积',
+                synonym: 'gather, collect, amass',
+                phrase: 'accumulate wealth'
+            },
+            'accurate': {
+                meaning: '准确的；精确的',
+                synonym: 'precise, correct, exact',
+                phrase: 'accurate information'
+            },
+            'accuse': {
+                meaning: '指责；控告',
+                synonym: 'charge, blame, indict',
+                phrase: 'accuse someone of'
+            },
+            'achieve': {
+                meaning: '实现；达到；完成',
+                synonym: 'accomplish, attain, reach',
+                phrase: 'achieve success'
+            },
+            'acknowledge': {
+                meaning: '承认；确认；致谢',
+                synonym: 'admit, recognize, accept',
+                phrase: 'acknowledge receipt'
+            },
+            'acquaint': {
+                meaning: '使熟悉；告知',
+                synonym: 'familiarize, inform, introduce',
+                phrase: 'acquaint with'
+            },
+            'acquire': {
+                meaning: '获得；取得；学到',
+                synonym: 'obtain, gain, get',
+                phrase: 'acquire knowledge'
+            },
+            'acute': {
+                meaning: '尖锐的；剧烈的；急性的',
+                synonym: 'sharp, severe, intense',
+                phrase: 'acute pain'
+            },
+            'adapt': {
+                meaning: '适应；改编；修改',
+                synonym: 'adjust, modify, conform',
+                phrase: 'adapt to new environment'
+            },
+            'addict': {
+                meaning: '使上瘾；使沉迷',
+                synonym: 'hook, enslave, devote',
+                phrase: 'addict to drugs'
+            },
+            'adequate': {
+                meaning: '足够的；充分的；适当的',
+                synonym: 'sufficient, enough, satisfactory',
+                phrase: 'adequate supply'
+            },
+            'adhere': {
+                meaning: '粘附；遵守；坚持',
+                synonym: 'stick, cling, follow',
+                phrase: 'adhere to rules'
+            },
+            'adjacent': {
+                meaning: '邻近的；毗连的',
+                synonym: 'nearby, adjoining, neighboring',
+                phrase: 'adjacent room'
+            },
+            'adjust': {
+                meaning: '调整；适应；校正',
+                synonym: 'adapt, modify, regulate',
+                phrase: 'adjust to changes'
+            },
+            'administer': {
+                meaning: '管理；执行；给予',
+                synonym: 'manage, direct, supervise',
+                phrase: 'administer justice'
+            },
+            'admire': {
+                meaning: '钦佩；赞赏；欣赏',
+                synonym: 'respect, appreciate, esteem',
+                phrase: 'admire courage'
+            },
+            'admit': {
+                meaning: '承认；准许进入；接纳',
+                synonym: 'acknowledge, confess, accept',
+                phrase: 'admit mistake'
+            },
+            'adopt': {
+                meaning: '采用；收养；采纳',
+                synonym: 'accept, embrace, take on',
+                phrase: 'adopt new method'
+            },
+            'adult': {
+                meaning: '成年人；成熟的',
+                synonym: 'grown-up, mature, fully developed',
+                phrase: 'adult education'
+            },
+            'advance': {
+                meaning: '前进；进步；预付',
+                synonym: 'progress, proceed, move forward',
+                phrase: 'advance technology'
+            },
+            'advanced': {
+                meaning: '先进的；高级的；前进的',
+                synonym: 'progressive, sophisticated, developed',
+                phrase: 'advanced technology'
+            },
+            'advantage': {
+                meaning: '优势；好处；利益',
+                synonym: 'benefit, edge, superiority',
+                phrase: 'take advantage of'
+            },
+            'adventure': {
+                meaning: '冒险；奇遇；冒险经历',
+                synonym: 'venture, risk, undertaking',
+                phrase: 'adventure story'
+            },
+            'adverse': {
+                meaning: '不利的；敌对的；相反的',
+                synonym: 'unfavorable, harmful, opposed',
+                phrase: 'adverse effect'
+            },
+            'advertise': {
+                meaning: '做广告；宣传',
+                synonym: 'promote, publicize, market',
+                phrase: 'advertise product'
+            },
+            'advocate': {
+                meaning: '提倡；主张；拥护',
+                synonym: 'support, recommend, champion',
+                phrase: 'advocate for change'
+            },
+            'affect': {
+                meaning: '影响；感动；侵袭',
+                synonym: 'influence, impact, touch',
+                phrase: 'affect decision'
+            },
+            'affection': {
+                meaning: '喜爱；感情；爱慕',
+                synonym: 'love, fondness, attachment',
+                phrase: 'show affection'
+            },
+            'affiliate': {
+                meaning: '使隶属；附属；联系',
+                synonym: 'associate, connect, link',
+                phrase: 'affiliate with'
+            },
+            'affirm': {
+                meaning: '断言；证实；肯定',
+                synonym: 'assert, confirm, declare',
+                phrase: 'affirm belief'
+            },
+            'afflict': {
+                meaning: '使痛苦；折磨',
+                synonym: 'trouble, distress, torment',
+                phrase: 'afflict with disease'
+            },
+            'afford': {
+                meaning: '负担得起；提供；给予',
+                synonym: 'provide, supply, bear',
+                phrase: 'afford to buy'
+            },
+            'aggressive': {
+                meaning: '侵略的；好斗的；有进取心的',
+                synonym: 'forceful, assertive, offensive',
+                phrase: 'aggressive behavior'
+            },
+            'agony': {
+                meaning: '极度痛苦；苦恼',
+                synonym: 'pain, suffering, torment',
+                phrase: 'in agony'
+            },
+            'agree': {
+                meaning: '同意；赞成；一致',
+                synonym: 'consent, approve, concur',
+                phrase: 'agree with'
+            },
+            'agreeable': {
+                meaning: '令人愉快的；宜人的；同意的',
+                synonym: 'pleasant, enjoyable, pleasing',
+                phrase: 'agreeable climate'
+            },
+            'agreement': {
+                meaning: '协议；同意；一致',
+                synonym: 'contract, accord, understanding',
+                phrase: 'reach agreement'
+            },
+            'agriculture': {
+                meaning: '农业；农学',
+                synonym: 'farming, cultivation, husbandry',
+                phrase: 'modern agriculture'
+            },
+            'aid': {
+                meaning: '帮助；援助；辅助设备',
+                synonym: 'help, assist, support',
+                phrase: 'first aid'
+            },
+            'aim': {
+                meaning: '目标；瞄准；目的在于',
+                synonym: 'target, goal, objective',
+                phrase: 'aim at'
+            },
+            'aircraft': {
+                meaning: '飞机；航空器',
+                synonym: 'airplane, plane, jet',
+                phrase: 'military aircraft'
+            },
+            'airline': {
+                meaning: '航空公司；航线',
+                synonym: 'airway, air transport, carrier',
+                phrase: 'international airline'
+            },
+            'airport': {
+                meaning: '机场；航空港',
+                synonym: 'airfield, terminal, aerodrome',
+                phrase: 'international airport'
+            },
+            'alarm': {
+                meaning: '警报；惊恐；使惊恐',
+                synonym: 'warning, alert, fear',
+                phrase: 'fire alarm'
+            },
+            'album': {
+                meaning: '相册；专辑；集邮册',
+                synonym: 'collection, record, photo book',
+                phrase: 'photo album'
+            },
+            'alert': {
+                meaning: '警觉的；敏捷的；警报',
+                synonym: 'watchful, awake, vigilant',
+                phrase: 'stay alert'
+            },
+            'alien': {
+                meaning: '外国的；外星人；陌生的',
+                synonym: 'foreign, exotic, strange',
+                phrase: 'alien culture'
+            },
+            'alike': {
+                meaning: '相似的；同样地',
+                synonym: 'similar, like, equal',
+                phrase: 'look alike'
+            },
+            'alive': {
+                meaning: '活着的；有活力的',
+                synonym: 'living, existing, breathing',
+                phrase: 'stay alive'
+            },
+            'alliance': {
+                meaning: '联盟；联合；同盟',
+                synonym: 'union, partnership, coalition',
+                phrase: 'form alliance'
+            },
+            'allow': {
+                meaning: '允许；准许；承认',
+                synonym: 'permit, let, authorize',
+                phrase: 'allow for'
+            },
+            'allowance': {
+                meaning: '津贴； allowance；宽容',
+                synonym: 'payment, stipend, concession',
+                phrase: 'make allowance for'
+            },
+            'ally': {
+                meaning: '同盟国；伙伴；使联盟',
+                synonym: 'partner, supporter, associate',
+                phrase: 'ally with'
+            },
+            'alone': {
+                meaning: '单独的；孤独的；仅仅',
+                synonym: 'solitary, single, isolated',
+                phrase: 'leave alone'
+            },
+            'along': {
+                meaning: '沿着；向前；一起',
+                synonym: 'alongside, forward, onward',
+                phrase: 'along with'
+            },
+            'alongside': {
+                meaning: '在旁边；与...一起',
+                synonym: 'beside, next to, together with',
+                phrase: 'work alongside'
+            },
+            'alphabet': {
+                meaning: '字母表；字母系统',
+                synonym: 'letters, ABC, characters',
+                phrase: 'learn alphabet'
+            },
+            'alter': {
+                meaning: '改变；修改；更改',
+                synonym: 'change, modify, adjust',
+                phrase: 'alter plan'
+            },
+            'alternative': {
+                meaning: '替代方案；选择；可供选择的',
+                synonym: 'option, choice, substitute',
+                phrase: 'alternative solution'
+            },
+            'although': {
+                meaning: '虽然；尽管',
+                synonym: 'though, even though, despite',
+                phrase: 'although difficult'
+            },
+            'altogether': {
+                meaning: '完全地；总共；总而言之',
+                synonym: 'completely, entirely, totally',
+                phrase: 'altogether different'
+            },
+            'always': {
+                meaning: '总是；永远；一直',
+                synonym: 'forever, constantly, continually',
+                phrase: 'always late'
+            },
+            'amateur': {
+                meaning: '业余的；业余爱好者',
+                synonym: 'nonprofessional, beginner, novice',
+                phrase: 'amateur photographer'
+            },
+            'amazing': {
+                meaning: '惊人的；了不起的；令人惊奇的',
+                synonym: 'astonishing, surprising, wonderful',
+                phrase: 'amazing performance'
+            },
+            'ambassador': {
+                meaning: '大使；代表；使节',
+                synonym: 'envoy, representative, diplomat',
+                phrase: 'peace ambassador'
+            },
+            'ambiguous': {
+                meaning: '模棱两可的；含糊不清的',
+                synonym: 'unclear, vague, uncertain',
+                phrase: 'ambiguous statement'
+            },
+            'ambition': {
+                meaning: '抱负；野心；雄心',
+                synonym: 'aspiration, goal, drive',
+                phrase: 'political ambition'
+            },
+            'ambulance': {
+                meaning: '救护车；野战医院',
+                synonym: 'emergency vehicle, medical transport',
+                phrase: 'call ambulance'
+            },
+            'among': {
+                meaning: '在...之中；在...之间',
+                synonym: 'amidst, between, amidst',
+                phrase: 'among friends'
+            },
+            'amount': {
+                meaning: '数量；总数；等于',
+                synonym: 'quantity, sum, total',
+                phrase: 'large amount'
+            },
+            'ampere': {
+                meaning: '安培（电流单位）',
+                synonym: 'amp, current unit',
+                phrase: 'ampere meter'
+            },
+            'amplify': {
+                meaning: '放大；增强；详述',
+                synonym: 'magnify, enlarge, boost',
+                phrase: 'amplify sound'
+            },
+            'amuse': {
+                meaning: '使发笑；逗乐；给...提供娱乐',
+                synonym: 'entertain, delight, please',
+                phrase: 'amuse children'
+            },
+            'analyze': {
+                meaning: '分析；分解；解析',
+                synonym: 'examine, study, investigate',
+                phrase: 'analyze data'
+            },
+            'ancient': {
+                meaning: '古代的；古老的；年老的',
+                synonym: 'old, antique, historic',
+                phrase: 'ancient civilization'
+            },
+            'anger': {
+                meaning: '愤怒；生气；使生气',
+                synonym: 'rage, fury, indignation',
+                phrase: 'show anger'
+            },
+            'angle': {
+                meaning: '角度；角；观点',
+                synonym: 'corner, perspective, viewpoint',
+                phrase: 'right angle'
+            },
+            'angry': {
+                meaning: '愤怒的；生气的',
+                synonym: 'mad, furious, irritated',
+                phrase: 'get angry'
+            },
+            'animal': {
+                meaning: '动物；兽性的；肉体的',
+                synonym: 'creature, beast, living being',
+                phrase: 'wild animal'
+            },
+            'ankle': {
+                meaning: '踝关节；脚踝',
+                synonym: 'ankle joint',
+                phrase: 'sprain ankle'
+            },
+            'anniversary': {
+                meaning: '周年纪念；周年纪念日',
+                synonym: 'commemoration, celebration',
+                phrase: 'wedding anniversary'
+            },
+            'announce': {
+                meaning: '宣布；公布；预告',
+                synonym: 'declare, proclaim, broadcast',
+                phrase: 'announce result'
+            },
+            'annoy': {
+                meaning: '使烦恼；打扰；骚扰',
+                synonym: 'bother, irritate, disturb',
+                phrase: 'annoy neighbor'
+            },
+            'annual': {
+                meaning: '每年的；年度的；年报',
+                synonym: 'yearly, once a year',
+                phrase: 'annual report'
+            },
+            'another': {
+                meaning: '另一个；再一个；不同的',
+                synonym: 'different, additional, other',
+                phrase: 'one another'
+            },
+            'answer': {
+                meaning: '回答；答案；响应',
+                synonym: 'reply, response, solution',
+                phrase: 'answer question'
+            },
+            'anticipate': {
+                meaning: '预期；预料；预见',
+                synonym: 'expect, foresee, predict',
+                phrase: 'anticipate demand'
+            },
+            'anxiety': {
+                meaning: '焦虑；不安；渴望',
+                synonym: 'worry, nervousness, concern',
+                phrase: 'feel anxiety'
+            },
+            'anxious': {
+                meaning: '焦虑的；渴望的；急切的',
+                synonym: 'worried, nervous, concerned',
+                phrase: 'anxious about'
+            },
+            'any': {
+                meaning: '任何的；一些；所有的',
+                synonym: 'some, whatever, whichever',
+                phrase: 'any time'
+            },
+            'anybody': {
+                meaning: '任何人；重要人物',
+                synonym: 'anyone, someone',
+                phrase: 'help anybody'
+            },
+            'anyhow': {
+                meaning: '无论如何；不管怎样',
+                synonym: 'anyway, regardless, in any case',
+                phrase: 'anyhow try'
+            },
+            'anyone': {
+                meaning: '任何人；无论谁',
+                synonym: 'anybody, someone, whoever',
+                phrase: 'ask anyone'
+            },
+            'anything': {
+                meaning: '任何事；任何东西',
+                synonym: 'whatever, something, any thing',
+                phrase: 'do anything'
+            },
+            'anyway': {
+                meaning: '无论如何；不管怎样',
+                synonym: 'anyhow, regardless, in any case',
+                phrase: 'anyway go'
+            },
+            'anywhere': {
+                meaning: '任何地方；无论哪里',
+                synonym: 'everywhere, wherever',
+                phrase: 'go anywhere'
+            },
+            'apart': {
+                meaning: '分开；相距；除外',
+                synonym: 'separate, aside, distant',
+                phrase: 'apart from'
+            },
+            'apartment': {
+                meaning: '公寓；房间',
+                synonym: 'flat, suite, rooms',
+                phrase: 'rent apartment'
+            },
+            'apologize': {
+                meaning: '道歉；谢罪；辩解',
+                synonym: 'say sorry, express regret',
+                phrase: 'apologize for'
+            },
+            'apology': {
+                meaning: '道歉；歉意；辩护',
+                synonym: 'excuse, regret, justification',
+                phrase: 'make apology'
+            },
+            'apparent': {
+                meaning: '明显的；表面的；显然的',
+                synonym: 'obvious, clear, evident',
+                phrase: 'apparent reason'
+            },
+            'appeal': {
+                meaning: '呼吁；上诉；吸引力',
+                synonym: 'request, petition, attraction',
+                phrase: 'appeal to'
+            },
+            'appear': {
+                meaning: '出现；显得；似乎',
+                synonym: 'emerge, show, seem',
+                phrase: 'appear suddenly'
+            },
+            'appearance': {
+                meaning: '外貌；出现；外观',
+                synonym: 'look, presence, exterior',
+                phrase: 'physical appearance'
+            },
+            'appetite': {
+                meaning: '食欲；欲望；胃口',
+                synonym: 'hunger, desire, craving',
+                phrase: 'lose appetite'
+            },
+            'apple': {
+                meaning: '苹果；苹果树',
+                synonym: 'fruit',
+                phrase: 'apple pie'
+            },
+            'application': {
+                meaning: '申请；应用；应用程序',
+                synonym: 'request, use, software',
+                phrase: 'job application'
+            },
+            'apply': {
+                meaning: '申请；应用；适用',
+                synonym: 'request, use, pertain to',
+                phrase: 'apply for'
+            },
+            'appoint': {
+                meaning: '任命；指定；约定',
+                synonym: 'assign, designate, name',
+                phrase: 'appoint manager'
+            },
+            'appointment': {
+                meaning: '约会；任命；约定',
+                synonym: 'meeting, engagement, designation',
+                phrase: 'make appointment'
+            },
+            'appreciate': {
+                meaning: '欣赏；感激；领会',
+                synonym: 'value, treasure, enjoy',
+                phrase: 'appreciate help'
+            },
+            'approach': {
+                meaning: '接近；方法；途径',
+                synonym: 'near, method, way',
+                phrase: 'approach problem'
+            },
+            'appropriate': {
+                meaning: '适当的；恰当的；拨出',
+                synonym: 'suitable, proper, fitting',
+                phrase: 'appropriate behavior'
+            },
+            'approval': {
+                meaning: '批准；同意；赞成',
+                synonym: 'approval, consent, endorsement',
+                phrase: 'give approval'
+            },
+            'approve': {
+                meaning: '批准；赞成；同意',
+                synonym: 'authorize, sanction, accept',
+                phrase: 'approve plan'
+            },
+            'approximately': {
+                meaning: '大约；近似地',
+                synonym: 'about, roughly, around',
+                phrase: 'approximately 100'
+            },
+            'April': {
+                meaning: '四月',
+                synonym: 'fourth month',
+                phrase: 'April Fool'
+            },
+            'arbitrary': {
+                meaning: '任意的；专断的；武断的',
+                synonym: 'random, capricious, despotic',
+                phrase: 'arbitrary decision'
+            },
+            'architect': {
+                meaning: '建筑师；设计师；缔造者',
+                synonym: 'designer, planner, creator',
+                phrase: 'chief architect'
+            },
+            'architecture': {
+                meaning: '建筑学；建筑风格；结构',
+                synonym: 'building design, structure',
+                phrase: 'modern architecture'
+            },
+            'area': {
+                meaning: '地区；面积；领域',
+                synonym: 'region, district, zone',
+                phrase: 'urban area'
+            },
+            'argue': {
+                meaning: '争论；辩论；说服',
+                synonym: 'debate, dispute, contend',
+                phrase: 'argue about'
+            },
+            'argument': {
+                meaning: '争论；论点；论据',
+                synonym: 'dispute, debate, controversy',
+                phrase: 'strong argument'
+            },
+            'arise': {
+                meaning: '出现；产生；起床',
+                synonym: 'emerge, occur, happen',
+                phrase: 'arise from'
+            },
+            'arithmetic': {
+                meaning: '算术；计算',
+                synonym: 'calculation, mathematics',
+                phrase: 'basic arithmetic'
+            },
+            'arm': {
+                meaning: '手臂；武器；装备',
+                synonym: 'limb, weapon, equip',
+                phrase: 'right arm'
+            },
+            'army': {
+                meaning: '军队；陆军；大批',
+                synonym: 'military, troops, forces',
+                phrase: 'join army'
+            },
+            'around': {
+                meaning: '在...周围；大约；到处',
+                synonym: 'about, approximately, near',
+                phrase: 'around world'
+            },
+            'arouse': {
+                meaning: '引起；唤醒；激发',
+                synonym: 'awaken, stimulate, provoke',
+                phrase: 'arouse interest'
+            },
+            'arrange': {
+                meaning: '安排；整理；布置',
+                synonym: 'organize, plan, prepare',
+                phrase: 'arrange meeting'
+            },
+            'arrangement': {
+                meaning: '安排；布置；协议',
+                synonym: 'organization, setup, agreement',
+                phrase: 'make arrangement'
+            },
+            'arrest': {
+                meaning: '逮捕；阻止；吸引',
+                synonym: 'capture, detain, stop',
+                phrase: 'arrest criminal'
+            },
+            'arrival': {
+                meaning: '到达；到来；抵达',
+                synonym: 'coming, advent, appearance',
+                phrase: 'upon arrival'
+            },
+            'arrive': {
+                meaning: '到达；抵达；成功',
+                synonym: 'reach, come, get to',
+                phrase: 'arrive at'
+            },
+            'arrow': {
+                meaning: '箭；箭头；箭号',
+                synonym: 'shaft, pointer, indicator',
+                phrase: 'shoot arrow'
+            },
+            'art': {
+                meaning: '艺术；美术；技艺',
+                synonym: 'skill, craft, technique',
+                phrase: 'work of art'
+            },
+            'article': {
+                meaning: '文章；物品；条款',
+                synonym: 'essay, item, clause',
+                phrase: 'news article'
+            },
+            'artificial': {
+                meaning: '人工的；人造的；虚假的',
+                synonym: 'man-made, synthetic, fake',
+                phrase: 'artificial intelligence'
+            },
+            'artist': {
+                meaning: '艺术家；画家；能手',
+                synonym: 'painter, creator, performer',
+                phrase: 'talented artist'
+            },
+            'artistic': {
+                meaning: '艺术的；艺术家的；有艺术性的',
+                synonym: 'creative, aesthetic, artistic',
+                phrase: 'artistic talent'
+            },
+            'as': {
+                meaning: '作为；像；当...时',
+                synonym: 'like, while, because',
+                phrase: 'as soon as'
+            },
+            'aside': {
+                meaning: '在旁边；到旁边；离开',
+                synonym: 'apart, away, beside',
+                phrase: 'set aside'
+            },
+            'ask': {
+                meaning: '问；请求；要求',
+                synonym: 'question, request, inquire',
+                phrase: 'ask for'
+            },
+            'asleep': {
+                meaning: '睡着的；睡熟的',
+                synonym: 'sleeping, dormant',
+                phrase: 'fall asleep'
+            },
+            'aspect': {
+                meaning: '方面；方位；样子',
+                synonym: 'feature, characteristic, side',
+                phrase: 'every aspect'
+            },
+            'assess': {
+                meaning: '评估；评定；估价',
+                synonym: 'evaluate, judge, estimate',
+                phrase: 'assess performance'
+            },
+            'assign': {
+                meaning: '分配；指派；指定',
+                synonym: 'allocate, appoint, designate',
+                phrase: 'assign task'
+            },
+            'assignment': {
+                meaning: '作业；任务；分配',
+                synonym: 'task, homework, duty',
+                phrase: 'complete assignment'
+            },
+            'assist': {
+                meaning: '帮助；协助；出席',
+                synonym: 'help, aid, support',
+                phrase: 'assist in'
+            },
+            'assistant': {
+                meaning: '助手；助理；辅助的',
+                synonym: 'helper, aide, supporter',
+                phrase: 'personal assistant'
+            },
+            'associate': {
+                meaning: '联系；交往；伙伴',
+                synonym: 'connect, relate, partner',
+                phrase: 'associate with'
+            },
+            'association': {
+                meaning: '协会；联系；联想',
+                synonym: 'organization, connection, society',
+                phrase: 'trade association'
+            },
+            'assume': {
+                meaning: '假定；承担；呈现',
+                synonym: 'suppose, presume, take on',
+                phrase: 'assume responsibility'
+            },
+            'assumption': {
+                meaning: '假定；假设；承担',
+                synonym: 'presumption, supposition, belief',
+                phrase: 'make assumption'
+            },
+            'assure': {
+                meaning: '保证；使确信；确保',
+                synonym: 'guarantee, convince, ensure',
+                phrase: 'assure success'
+            },
+            'at': {
+                meaning: '在；以；朝',
+                synonym: 'in, on, to',
+                phrase: 'at home'
+            },
+            'attach': {
+                meaning: '附加；系上；使依恋',
+                synonym: 'fasten, fix, connect',
+                phrase: 'attach to'
+            },
+            'attack': {
+                meaning: '攻击；进攻；抨击',
+                synonym: 'assault, strike, criticize',
+                phrase: 'attack enemy'
+            },
+            'attempt': {
+                meaning: '尝试；企图；试图',
+                synonym: 'try, endeavor, strive',
+                phrase: 'make attempt'
+            },
+            'attend': {
+                meaning: '出席；参加；照料',
+                synonym: 'be present, join, care for',
+                phrase: 'attend meeting'
+            },
+            'attention': {
+                meaning: '注意；注意力；关心',
+                synonym: 'notice, concentration, focus',
+                phrase: 'pay attention'
+            },
+            'attitude': {
+                meaning: '态度；看法；姿势',
+                synonym: 'viewpoint, approach, position',
+                phrase: 'positive attitude'
+            },
+            'attract': {
+                meaning: '吸引；引起；诱惑',
+                synonym: 'draw, appeal, fascinate',
+                phrase: 'attract attention'
+            },
+            'attraction': {
+                meaning: '吸引；吸引力；景点',
+                synonym: 'appeal, fascination, draw',
+                phrase: 'tourist attraction'
+            },
+            'attractive': {
+                meaning: '有吸引力的；迷人的',
+                synonym: 'appealing, charming, beautiful',
+                phrase: 'attractive person'
+            },
+            'attribute': {
+                meaning: '属性；特征；归因于',
+                synonym: 'quality, characteristic, feature',
+                phrase: 'attribute to'
+            },
+            'audience': {
+                meaning: '观众；听众；读者',
+                synonym: 'spectators, listeners, viewers',
+                phrase: 'target audience'
+            },
+            'author': {
+                meaning: '作者；作家；创造者',
+                synonym: 'writer, creator, originator',
+                phrase: 'famous author'
+            },
+            'authority': {
+                meaning: '权威；当局；权力',
+                synonym: 'power, control, jurisdiction',
+                phrase: 'exercise authority'
+            },
+            'automatic': {
+                meaning: '自动的；无意识的；必然的',
+                synonym: 'self-acting, mechanical, spontaneous',
+                phrase: 'automatic system'
+            },
+            'automobile': {
+                meaning: '汽车；机动车',
+                synonym: 'car, vehicle, motorcar',
+                phrase: 'automobile industry'
+            },
+            'autumn': {
+                meaning: '秋天；秋季；成熟期',
+                synonym: 'fall, harvest season',
+                phrase: 'autumn leaves'
+            },
+            'available': {
+                meaning: '可获得的；可用的；有空的',
+                synonym: 'accessible, obtainable, free',
+                phrase: 'available for'
+            },
+            'average': {
+                meaning: '平均的；普通的；平均数',
+                synonym: 'normal, typical, medium',
+                phrase: 'on average'
+            },
+            'avoid': {
+                meaning: '避免；躲开；消除',
+                synonym: 'evade, escape, prevent',
+                phrase: 'avoid danger'
+            },
+            'await': {
+                meaning: '等待；期待；等候',
+                synonym: 'wait for, expect, anticipate',
+                phrase: 'await reply'
+            },
+            'awake': {
+                meaning: '醒着的；唤醒；觉悟',
+                synonym: 'conscious, alert, wake up',
+                phrase: 'stay awake'
+            },
+            'award': {
+                meaning: '奖；授予；判定',
+                synonym: 'prize, grant, reward',
+                phrase: 'win award'
+            },
+            'aware': {
+                meaning: '意识到的；知道的；有觉悟的',
+                synonym: 'conscious, mindful, alert',
+                phrase: 'aware of'
+            },
+            'away': {
+                meaning: '离开；远离；持续',
+                synonym: 'absent, gone, distant',
+                phrase: 'far away'
+            },
+            'awful': {
+                meaning: '可怕的；糟糕的；非常的',
+                synonym: 'terrible, horrible, dreadful',
+                phrase: 'awful weather'
+            },
+            'awkward': {
+                meaning: '笨拙的；尴尬的；难处理的',
+                synonym: 'clumsy, embarrassing, difficult',
+                phrase: 'awkward situation'
+            },
+            'baby': {
+                meaning: '婴儿；幼崽；最小的人',
+                synonym: 'infant, child, newborn',
+                phrase: 'baby boom'
+            },
+            'back': {
+                meaning: '后面；背部；支持',
+                synonym: 'rear, support, return',
+                phrase: 'go back'
+            },
+            'background': {
+                meaning: '背景；经历；幕后',
+                synonym: 'backdrop, setting, history',
+                phrase: 'educational background'
+            },
+            'backward': {
+                meaning: '向后的；落后的；迟钝的',
+                synonym: 'reverse, underdeveloped, slow',
+                phrase: 'backward country'
+            },
+            'bacteria': {
+                meaning: '细菌',
+                synonym: 'germs, microbes',
+                phrase: 'harmful bacteria'
+            },
+            'bad': {
+                meaning: '坏的；有害的；严重的',
+                synonym: 'evil, harmful, poor',
+                phrase: 'bad habit'
+            },
+            'badly': {
+                meaning: '坏地；严重地；非常',
+                synonym: 'poorly, severely, very',
+                phrase: 'behave badly'
+            },
+            'bag': {
+                meaning: '袋；包；猎获物',
+                synonym: 'sack, pouch, container',
+                phrase: 'shopping bag'
+            },
+            'baggage': {
+                meaning: '行李；包袱；负担',
+                synonym: 'luggage, bags, burden',
+                phrase: 'check baggage'
+            },
+            'bake': {
+                meaning: '烤；烘焙；烧硬',
+                synonym: 'roast, cook, heat',
+                phrase: 'bake bread'
+            },
+            'balance': {
+                meaning: '平衡；余额；天平',
+                synonym: 'equilibrium, remainder, scale',
+                phrase: 'keep balance'
+            },
+            'ball': {
+                meaning: '球；舞会；球形物',
+                synonym: 'sphere, dance, globe',
+                phrase: 'play ball'
+            },
+            'balloon': {
+                meaning: '气球；热气球；突然增长',
+                synonym: 'airship, bubble, inflate',
+                phrase: 'hot air balloon'
+            },
+            'band': {
+                meaning: '带；波段；乐队',
+                synonym: 'strip, belt, orchestra',
+                phrase: 'rock band'
+            },
+            'bang': {
+                meaning: '猛敲；巨响；突然',
+                synonym: 'slam, crash, boom',
+                phrase: 'bang door'
+            },
+            'bank': {
+                meaning: '银行；河岸；储存',
+                synonym: 'financial institution, shore, store',
+                phrase: 'bank account'
+            },
+            'bankrupt': {
+                meaning: '破产的；彻底失败的',
+                synonym: 'insolvent, broke, ruined',
+                phrase: 'go bankrupt'
+            },
+            'banner': {
+                meaning: '横幅；旗帜；标语',
+                synonym: 'flag, standard, headline',
+                phrase: 'under banner'
+            },
+            'bar': {
+                meaning: '条；棒；酒吧；阻止',
+                synonym: 'rod, stick, tavern',
+                phrase: 'go to bar'
+            },
+            'bare': {
+                meaning: '赤裸的；仅仅的；露出',
+                synonym: 'naked, uncovered, mere',
+                phrase: 'bare feet'
+            },
+            'bargain': {
+                meaning: '交易；便宜货；讨价还价',
+                synonym: 'deal, agreement, negotiate',
+                phrase: 'make bargain'
+            },
+            'bark': {
+                meaning: '吠叫；树皮；大声喊出',
+                synonym: 'yelp, skin, shout',
+                phrase: 'dog bark'
+            },
+            'barn': {
+                meaning: '谷仓；仓库；牲口棚',
+                synonym: 'shed, warehouse, stable',
+                phrase: 'old barn'
+            },
+            'barrel': {
+                meaning: '桶；枪管；大量',
+                synonym: 'cask, drum, tube',
+                phrase: 'oil barrel'
+            },
+            'barrier': {
+                meaning: '障碍；屏障；壁垒',
+                synonym: 'obstacle, fence, hindrance',
+                phrase: 'break down barrier'
+            },
+            'base': {
+                meaning: '基础；基地；卑鄙的',
+                synonym: 'foundation, basis, bottom',
+                phrase: 'military base'
+            },
+            'basic': {
+                meaning: '基本的；基础的；首要的',
+                synonym: 'fundamental, essential, elementary',
+                phrase: 'basic knowledge'
+            },
+            'basin': {
+                meaning: '盆地；流域；盆',
+                synonym: 'bowl, depression, sink',
+                phrase: 'river basin'
+            },
+            'basis': {
+                meaning: '基础；根据；主要成分',
+                synonym: 'foundation, base, ground',
+                phrase: 'on basis'
+            },
+            'basket': {
+                meaning: '篮子；筐；投篮',
+                synonym: 'hamper, container, goal',
+                phrase: 'shopping basket'
+            },
+            'basketball': {
+                meaning: '篮球；篮球运动',
+                synonym: 'hoops, court game',
+                phrase: 'play basketball'
+            },
+            'bat': {
+                meaning: '蝙蝠；球棒；击球',
+                synonym: 'racket, club, stick',
+                phrase: 'baseball bat'
+            },
+            'batch': {
+                meaning: '一批；一组；分批',
+                synonym: 'group, lot, set',
+                phrase: 'batch processing'
+            },
+            'bath': {
+                meaning: '洗澡；浴缸；沐浴',
+                synonym: 'bathtub, wash, soak',
+                phrase: 'take bath'
+            },
+            'bathe': {
+                meaning: '洗澡；沐浴；浸洗',
+                synonym: 'wash, soak, clean',
+                phrase: 'bathe in sun'
+            },
+            'bathroom': {
+                meaning: '浴室；盥洗室；厕所',
+                synonym: 'washroom, lavatory, toilet',
+                phrase: 'go to bathroom'
+            },
+            'battery': {
+                meaning: '电池；一系列；炮组',
+                synonym: 'cell, series, artillery',
+                phrase: 'recharge battery'
+            },
+            'battle': {
+                meaning: '战斗；斗争；竞争',
+                synonym: 'fight, combat, struggle',
+                phrase: 'win battle'
+            },
+            'bay': {
+                meaning: '海湾；月桂；隔间',
+                synonym: 'gulf, inlet, compartment',
+                phrase: 'San Francisco Bay'
+            },
+            'be': {
+                meaning: '是；存在；成为',
+                synonym: 'exist, live, remain',
+                phrase: 'be happy'
+            },
+            'beach': {
+                meaning: '海滩；沙滩；海滨',
+                synonym: 'shore, coast, seaside',
+                phrase: 'go to beach'
+            },
+            'beam': {
+                meaning: '梁；光束；微笑',
+                synonym: 'ray, smile, girder',
+                phrase: 'beam with joy'
+            },
+            'bean': {
+                meaning: '豆；豆子；无价值的东西',
+                synonym: 'seed, legume, pea',
+                phrase: 'coffee bean'
+            },
+            'bear': {
+                meaning: '熊；忍受；承担',
+                synonym: 'endure, tolerate, carry',
+                phrase: 'polar bear'
+            },
+            'beard': {
+                meaning: '胡须；络腮胡子',
+                synonym: 'facial hair, whiskers',
+                phrase: 'grow beard'
+            },
+            'beast': {
+                meaning: '野兽；牲畜；凶残的人',
+                synonym: 'animal, creature, brute',
+                phrase: 'wild beast'
+            },
+            'beat': {
+                meaning: '打；击败；心跳',
+                synonym: 'strike, defeat, pulse',
+                phrase: 'beat record'
+            },
+            'beautiful': {
+                meaning: '美丽的；漂亮的；很好的',
+                synonym: 'lovely, pretty, attractive',
+                phrase: 'beautiful day'
+            },
+            'beauty': {
+                meaning: '美丽；美人；美的东西',
+                synonym: 'loveliness, charm, attractiveness',
+                phrase: 'natural beauty'
+            },
+            'because': {
+                meaning: '因为；由于',
+                synonym: 'since, as, for',
+                phrase: 'because of'
+            },
+            'become': {
+                meaning: '变成；成为；适合',
+                synonym: 'turn into, grow, develop',
+                phrase: 'become famous'
+            },
+            'bed': {
+                meaning: '床；河床；基础',
+                synonym: 'cot, mattress, foundation',
+                phrase: 'go to bed'
+            },
+            'bee': {
+                meaning: '蜜蜂；忙碌的人',
+                synonym: 'honeybee, insect',
+                phrase: 'busy as a bee'
+            },
+            'beef': {
+                meaning: '牛肉；肌肉；力量',
+                synonym: 'meat, muscle, strength',
+                phrase: 'beef steak'
+            },
+            'beer': {
+                meaning: '啤酒；一瓶啤酒',
+                synonym: 'ale, brew, drink',
+                phrase: 'drink beer'
+            },
+            'before': {
+                meaning: '在...之前；以前；前面',
+                synonym: 'prior to, ago, ahead',
+                phrase: 'before long'
+            },
+            'beg': {
+                meaning: '乞求；请求；恳求',
+                synonym: 'implore, plead, request',
+                phrase: 'beg for'
+            },
+            'begin': {
+                meaning: '开始；着手；起源',
+                synonym: 'start, commence, originate',
+                phrase: 'begin with'
+            },
+            'beginning': {
+                meaning: '开始；开端；起源',
+                synonym: 'start, commencement, origin',
+                phrase: 'in beginning'
+            },
+            'behalf': {
+                meaning: '代表；为了；利益',
+                synonym: 'on behalf of, for',
+                phrase: 'on behalf of'
+            },
+            'behave': {
+                meaning: '表现；举止；运转',
+                synonym: 'act, conduct, perform',
+                phrase: 'behave well'
+            },
+            'behavior': {
+                meaning: '行为；举止；态度',
+                synonym: 'conduct, manner, action',
+                phrase: 'good behavior'
+            },
+            'behind': {
+                meaning: '在...后面；落后；支持',
+                synonym: 'after, back of, late',
+                phrase: 'fall behind'
+            },
+            'being': {
+                meaning: '存在；生物；本质',
+                synonym: 'existence, creature, life',
+                phrase: 'human being'
+            },
+            'belief': {
+                meaning: '信念；信仰；相信',
+                synonym: 'faith, trust, conviction',
+                phrase: 'strong belief'
+            },
+            'believe': {
+                meaning: '相信；认为；信任',
+                synonym: 'trust, think, accept',
+                phrase: 'believe in'
+            },
+            'bell': {
+                meaning: '铃；钟；钟声',
+                synonym: 'chime, ring, alarm',
+                phrase: 'ring bell'
+            },
+            'belong': {
+                meaning: '属于；应归入；适合',
+                synonym: 'be part of, fit, be owned',
+                phrase: 'belong to'
+            },
+            'beloved': {
+                meaning: '心爱的；亲爱的；爱人',
+                synonym: 'dear, cherished, loved',
+                phrase: 'beloved wife'
+            },
+            'below': {
+                meaning: '在...下面；低于；向下',
+                synonym: 'under, beneath, lower',
+                phrase: 'below average'
+            },
+            'belt': {
+                meaning: '腰带；地带；带子',
+                synonym: 'strap, band, zone',
+                phrase: 'seat belt'
+            },
+            'bench': {
+                meaning: '长凳；工作台；法官席',
+                synonym: 'seat, table, court',
+                phrase: 'park bench'
+            },
+            'bend': {
+                meaning: '弯曲；转弯；屈服',
+                synonym: 'curve, turn, bow',
+                phrase: 'bend over'
+            },
+            'beneath': {
+                meaning: '在...下方；低于；不值得',
+                synonym: 'under, below, underneath',
+                phrase: 'beneath surface'
+            },
+            'beneficial': {
+                meaning: '有益的；有利的；有帮助的',
+                synonym: 'helpful, advantageous, useful',
+                phrase: 'beneficial effect'
+            },
+            'benefit': {
+                meaning: '利益；好处；慈善',
+                synonym: 'advantage, profit, gain',
+                phrase: 'for benefit of'
+            },
+            'beside': {
+                meaning: '在...旁边；与...相比',
+                synonym: 'next to, alongside, near',
+                phrase: 'beside point'
+            },
+            'besides': {
+                meaning: '此外；而且；除...外',
+                synonym: 'in addition, also, except',
+                phrase: 'besides that'
+            },
+            'best': {
+                meaning: '最好的；最佳；最',
+                synonym: 'finest, superior, top',
+                phrase: 'do best'
+            },
+            'bet': {
+                meaning: '打赌；赌注；断定',
+                synonym: 'wager, gamble, stake',
+                phrase: 'bet on'
+            },
+            'betray': {
+                meaning: '背叛；出卖；泄露',
+                synonym: 'deceive, cheat, reveal',
+                phrase: 'betray friend'
+            },
+            'better': {
+                meaning: '更好的；较好的；改进',
+                synonym: 'improved, superior, enhanced',
+                phrase: 'better off'
+            },
+            'between': {
+                meaning: '在...之间；介于；中间',
+                synonym: 'among, amidst, in between',
+                phrase: 'between lines'
+            },
+            'beyond': {
+                meaning: '在...那边；超出；除...外',
+                synonym: 'past, over, outside',
+                phrase: 'beyond doubt'
+            },
+            'Bible': {
+                meaning: '圣经；权威著作',
+                synonym: 'scripture, holy book',
+                phrase: 'Holy Bible'
+            },
+            'bicycle': {
+                meaning: '自行车；脚踏车',
+                synonym: 'bike, cycle, two-wheeler',
+                phrase: 'ride bicycle'
+            },
+            'big': {
+                meaning: '大的；重要的；成功的',
+                synonym: 'large, huge, important',
+                phrase: 'big deal'
+            },
+            'bike': {
+                meaning: '自行车；摩托车',
+                synonym: 'bicycle, motorcycle',
+                phrase: 'ride bike'
+            },
+            'bill': {
+                meaning: '账单；钞票；法案',
+                synonym: 'check, note, invoice',
+                phrase: 'pay bill'
+            },
+            'billion': {
+                meaning: '十亿；大量；无数',
+                synonym: 'thousand million, myriad',
+                phrase: 'billion dollars'
+            },
+            'bind': {
+                meaning: '捆绑；约束；装订',
+                synonym: 'tie, fasten, secure',
+                phrase: 'bind together'
+            },
+            'biology': {
+                meaning: '生物学；生命科学',
+                synonym: 'life science, organism study',
+                phrase: 'study biology'
+            },
+            'bird': {
+                meaning: '鸟；禽类；飞机',
+                synonym: 'fowl, avian, creature',
+                phrase: 'early bird'
+            },
+            'birth': {
+                meaning: '出生；诞生；出身',
+                synonym: 'delivery, origin, beginning',
+                phrase: 'give birth'
+            },
+            'birthday': {
+                meaning: '生日；诞辰；周年纪念',
+                synonym: 'natal day, anniversary',
+                phrase: 'happy birthday'
+            },
+            'biscuit': {
+                meaning: '饼干；小面包；淡褐色',
+                synonym: 'cookie, cracker, bread',
+                phrase: 'bake biscuit'
+            },
+            'bit': {
+                meaning: '一点；少量；比特',
+                synonym: 'piece, small amount, binary digit',
+                phrase: 'a bit of'
+            },
+            'bite': {
+                meaning: '咬；叮；一口',
+                synonym: 'chew, nibble, sting',
+                phrase: 'take bite'
+            },
+            'bitter': {
+                meaning: '苦的；痛苦的；激烈的',
+                synonym: 'sour, harsh, painful',
+                phrase: 'bitter cold'
+            },
+            'black': {
+                meaning: '黑色的；黑暗的；黑人',
+                synonym: 'dark, ebony, African',
+                phrase: 'black and white'
+            },
+            'blackboard': {
+                meaning: '黑板；记分牌',
+                synonym: 'chalkboard, board',
+                phrase: 'write on blackboard'
+            },
+            'blame': {
+                meaning: '责备；归咎于；责任',
+                synonym: 'accuse, criticize, fault',
+                phrase: 'blame for'
+            },
+            'blank': {
+                meaning: '空白的；茫然的；空白',
+                synonym: 'empty, void, vacant',
+                phrase: 'blank page'
+            },
+            'blanket': {
+                meaning: '毯子；厚的；覆盖',
+                synonym: 'cover, quilt, sheet',
+                phrase: 'electric blanket'
+            },
+            'blast': {
+                meaning: '爆炸；冲击；摧毁',
+                synonym: 'explosion, burst, blow',
+                phrase: 'blast off'
+            },
+            'bleed': {
+                meaning: '流血；渗出；榨取',
+                synonym: 'hemorrhage, ooze, drain',
+                phrase: 'bleed to death'
+            },
+            'blend': {
+                meaning: '混合；融合；协调',
+                synonym: 'mix, combine, merge',
+                phrase: 'blend in'
+            },
+            'bless': {
+                meaning: '祝福；保佑；赞美',
+                synonym: 'consecrate, sanctify, praise',
+                phrase: 'bless with'
+            },
+            'blind': {
+                meaning: '盲的；盲目的；窗帘',
+                synonym: 'sightless, unaware, shade',
+                phrase: 'blind date'
+            },
+            'block': {
+                meaning: '街区；阻塞；木块',
+                synonym: 'obstruct, hinder, chunk',
+                phrase: 'block road'
+            },
+            'blood': {
+                meaning: '血；血液；血统',
+                synonym: 'lifeblood, gore, lineage',
+                phrase: 'blood type'
+            },
+            'bloom': {
+                meaning: '开花；繁荣；青春',
+                synonym: 'flower, blossom, flourish',
+                phrase: 'in full bloom'
+            },
+            'blow': {
+                meaning: '吹；打击；吹风',
+                synonym: 'strike, hit, puff',
+                phrase: 'blow up'
+            },
+            'blue': {
+                meaning: '蓝色的；忧郁的；蓝色的',
+                synonym: 'azure, sad, depressed',
+                phrase: 'blue sky'
+            },
+            'board': {
+                meaning: '木板；董事会；上船',
+                synonym: 'plank, committee, embark',
+                phrase: 'on board'
+            },
+            'boast': {
+                meaning: '吹牛；自夸；拥有',
+                synonym: 'brag, show off, possess',
+                phrase: 'boast about'
+            },
+            'boat': {
+                meaning: '船；小船；艇',
+                synonym: 'ship, vessel, craft',
+                phrase: 'row boat'
+            },
+            'body': {
+                meaning: '身体；主体；团体',
+                synonym: 'physique, form, group',
+                phrase: 'healthy body'
+            },
+            'boil': {
+                meaning: '煮沸；激动；沸腾',
+                synonym: 'simmer, cook, seethe',
+                phrase: 'boil water'
+            },
+            'bold': {
+                meaning: '大胆的；粗体的；醒目的',
+                synonym: 'brave, courageous, daring',
+                phrase: 'bold decision'
+            },
+            'bolt': {
+                meaning: '螺栓；闪电；逃跑',
+                synonym: 'pin, flash, escape',
+                phrase: 'lightning bolt'
+            },
+            'bomb': {
+                meaning: '炸弹；轰炸；失败',
+                synonym: 'explosive, bombshell, attack',
+                phrase: 'drop bomb'
+            },
+            'bond': {
+                meaning: '纽带；债券；结合',
+                synonym: 'tie, link, connection',
+                phrase: 'bond between'
+            },
+            'bone': {
+                meaning: '骨头；骨骼；核心',
+                synonym: 'skeleton, framework, core',
+                phrase: 'bone marrow'
+            },
+            'book': {
+                meaning: '书；书籍；预订',
+                synonym: 'volume, tome, reserve',
+                phrase: 'read book'
+            },
+            'boot': {
+                meaning: '靴子；启动；解雇',
+                synonym: 'shoe, kick, start up',
+                phrase: 'boot up'
+            },
+            'border': {
+                meaning: '边界；边境；边缘',
+                synonym: 'boundary, edge, frontier',
+                phrase: 'cross border'
+            },
+            'bore': {
+                meaning: '钻孔；使厌烦；孔',
+                synonym: 'drill, tire, hole',
+                phrase: 'bore to death'
+            },
+            'born': {
+                meaning: '出生；天生的；出身',
+                synonym: 'native, innate, delivered',
+                phrase: 'born with'
+            },
+            'borrow': {
+                meaning: '借；借用；抄袭',
+                synonym: 'loan, take, imitate',
+                phrase: 'borrow money'
+            },
+            'boss': {
+                meaning: '老板；首领；指挥',
+                synonym: 'leader, manager, chief',
+                phrase: 'boss around'
+            },
+            'both': {
+                meaning: '两者都；双方；不仅',
+                synonym: 'each, two, and',
+                phrase: 'both and'
+            },
+            'bother': {
+                meaning: '打扰；麻烦；操心',
+                synonym: 'disturb, trouble, annoy',
+                phrase: 'bother with'
+            },
+            'bottle': {
+                meaning: '瓶子；一瓶；装瓶',
+                synonym: 'flask, container, jar',
+                phrase: 'water bottle'
+            },
+            'bottom': {
+                meaning: '底部；尽头；根基',
+                synonym: 'base, foundation, lowest',
+                phrase: 'bottom line'
+            },
+            'bounce': {
+                meaning: '弹跳；反弹；活力',
+                synonym: 'spring, rebound, jump',
+                phrase: 'bounce back'
+            },
+            'bound': {
+                meaning: '跳跃；边界；必然的',
+                synonym: 'leap, limit, obligated',
+                phrase: 'be bound to'
+            },
+            'boundary': {
+                meaning: '边界；分界线；范围',
+                synonym: 'border, limit, frontier',
+                phrase: 'set boundary'
+            },
+            'bow': {
+                meaning: '弓；鞠躬；蝴蝶结',
+                synonym: 'arc, bend, reverence',
+                phrase: 'take bow'
+            },
+            'bowl': {
+                meaning: '碗；钵；碗状物',
+                synonym: 'dish, basin, container',
+                phrase: 'rice bowl'
+            },
+            'box': {
+                meaning: '盒子；箱子；拳击',
+                synonym: 'case, container, fight',
+                phrase: 'box office'
+            },
+            'boy': {
+                meaning: '男孩；儿子；男服务员',
+                synonym: 'lad, youth, male child',
+                phrase: 'little boy'
+            },
+            'brain': {
+                meaning: '大脑；头脑；智慧',
+                synonym: 'mind, intellect, intelligence',
+                phrase: 'brain storm'
+            },
+            'brake': {
+                meaning: '刹车；制动器；减速',
+                synonym: 'stop, slow, decelerate',
+                phrase: 'apply brake'
+            },
+            'branch': {
+                meaning: '树枝；分支；分部',
+                synonym: 'limb, bough, division',
+                phrase: 'branch out'
+            },
+            'brand': {
+                meaning: '品牌；商标；烙印',
+                synonym: 'trademark, make, label',
+                phrase: 'brand name'
+            },
+            'brave': {
+                meaning: '勇敢的；华丽的；面对',
+                synonym: 'courageous, bold, daring',
+                phrase: 'brave soldier'
+            },
+            'bread': {
+                meaning: '面包；生计；食物',
+                synonym: 'loaf, food, sustenance',
+                phrase: 'earn bread'
+            },
+            'break': {
+                meaning: '打破；中断；休息',
+                synonym: 'shatter, pause, rest',
+                phrase: 'break down'
+            },
+            'breakfast': {
+                meaning: '早餐；早餐会',
+                synonym: 'morning meal, brunch',
+                phrase: 'have breakfast'
+            },
+            'breast': {
+                meaning: '胸部；乳房；胸怀',
+                synonym: 'chest, bosom, heart',
+                phrase: 'breast cancer'
+            },
+            'breath': {
+                meaning: '呼吸；气息；一口气',
+                synonym: 'exhalation, respiration, puff',
+                phrase: 'hold breath'
+            },
+            'breathe': {
+                meaning: '呼吸；生存；低语',
+                synonym: 'inhale, exhale, live',
+                phrase: 'breathe in'
+            },
+            'breed': {
+                meaning: '品种；繁殖；养育',
+                synonym: 'variety, raise, reproduce',
+                phrase: 'new breed'
+            },
+            'brick': {
+                meaning: '砖；砖块；可靠的人',
+                synonym: 'block, building material',
+                phrase: 'brick wall'
+            },
+            'bride': {
+                meaning: '新娘；姑娘',
+                synonym: 'newlywed, woman',
+                phrase: 'beautiful bride'
+            },
+            'bridge': {
+                meaning: '桥；桥梁；桥牌',
+                synonym: 'span, overpass, connection',
+                phrase: 'build bridge'
+            },
+            'brief': {
+                meaning: '简短的；短暂的；摘要',
+                synonym: 'short, concise, temporary',
+                phrase: 'brief introduction'
+            },
+            'bright': {
+                meaning: '明亮的；聪明的；鲜艳的',
+                synonym: 'shining, intelligent, vivid',
+                phrase: 'bright future'
+            },
+            'brilliant': {
+                meaning: '辉煌的；才华横溢的；杰出的',
+                synonym: 'outstanding, splendid, excellent',
+                phrase: 'brilliant idea'
+            },
+            'bring': {
+                meaning: '带来；导致；引起',
+                synonym: 'carry, fetch, cause',
+                phrase: 'bring about'
+            },
+            'broad': {
+                meaning: '宽阔的；广泛的；概括的',
+                synonym: 'wide, extensive, general',
+                phrase: 'broad mind'
+            },
+            'broadcast': {
+                meaning: '广播；播送；传播',
+                synonym: 'transmit, air, announce',
+                phrase: 'live broadcast'
+            },
+            'broken': {
+                meaning: '破碎的；损坏的；断掉的',
+                synonym: 'shattered, damaged, ruined',
+                phrase: 'broken heart'
+            },
+            'brother': {
+                meaning: '兄弟；同事；同胞',
+                synonym: 'sibling, comrade, fellow',
+                phrase: 'elder brother'
+            },
+            'brown': {
+                meaning: '棕色的；褐色的；晒黑的',
+                synonym: 'tan, chocolate, dark',
+                phrase: 'brown sugar'
+            },
+            'brush': {
+                meaning: '刷子；画笔；灌木丛',
+                synonym: 'broom, scrub, shrub',
+                phrase: 'paint brush'
+            },
+            'budget': {
+                meaning: '预算；廉价的；编预算',
+                synonym: 'estimate, plan, cheap',
+                phrase: 'tight budget'
+            },
+            'build': {
+                meaning: '建造；建立；增强',
+                synonym: 'construct, erect, establish',
+                phrase: 'build up'
+            },
+            'building': {
+                meaning: '建筑；建筑物；建筑业',
+                synonym: 'structure, edifice, construction',
+                phrase: 'tall building'
+            },
+            'bulb': {
+                meaning: '灯泡；球茎；肿块',
+                synonym: 'light bulb, globe, corm',
+                phrase: 'change bulb'
+            },
+            'bulk': {
+                meaning: '大部分；体积；大批',
+                synonym: 'mass, majority, volume',
+                phrase: 'in bulk'
+            },
+            'bullet': {
+                meaning: '子弹；弹丸；迅速的',
+                synonym: 'shot, projectile, swift',
+                phrase: 'bullet train'
+            },
+            'bunch': {
+                meaning: '束；串；一群',
+                synonym: 'cluster, group, bundle',
+                phrase: 'bunch of flowers'
+            },
+            'bundle': {
+                meaning: '捆；束；包袱',
+                synonym: 'package, bunch, parcel',
+                phrase: 'bundle up'
+            },
+            'burden': {
+                meaning: '负担；重担；装载',
+                synonym: 'load, weight, responsibility',
+                phrase: 'bear burden'
+            },
+            'bureau': {
+                meaning: '局；办事处；衣柜',
+                synonym: 'agency, office, department',
+                phrase: 'information bureau'
+            },
+            'burn': {
+                meaning: '燃烧；烧毁；发烧',
+                synonym: 'ignite, scorch, fever',
+                phrase: 'burn down'
+            },
+            'burst': {
+                meaning: '爆炸；爆发；突然发生',
+                synonym: 'explode, erupt, break',
+                phrase: 'burst into'
+            },
+            'bury': {
+                meaning: '埋葬；隐藏；沉浸',
+                synonym: 'inter, conceal, immerse',
+                phrase: 'bury oneself in'
+            },
+            'bus': {
+                meaning: '公共汽车；总线；巴士',
+                synonym: 'coach, transport, vehicle',
+                phrase: 'take bus'
+            },
+            'bush': {
+                meaning: '灌木；丛林；矮树丛',
+                synonym: 'shrub, thicket, undergrowth',
+                phrase: 'beat around bush'
+            },
+            'business': {
+                meaning: '商业；生意；事务',
+                synonym: 'commerce, trade, affair',
+                phrase: 'do business'
+            },
+            'busy': {
+                meaning: '忙碌的；繁忙的；占线的',
+                synonym: 'occupied, engaged, active',
+                phrase: 'busy with'
+            },
+            'but': {
+                meaning: '但是；除了；可是',
+                synonym: 'however, except, yet',
+                phrase: 'but for'
+            },
+            'butter': {
+                meaning: '黄油；涂黄油；奉承',
+                synonym: 'margarine, spread, flatter',
+                phrase: 'butter bread'
+            },
+            'button': {
+                meaning: '按钮；纽扣；扣上',
+                synonym: 'knob, switch, fasten',
+                phrase: 'press button'
+            },
+            'buy': {
+                meaning: '买；购买；相信',
+                synonym: 'purchase, acquire, believe',
+                phrase: 'buy in'
+            },
+            'by': {
+                meaning: '通过；被；在...旁边',
+                synonym: 'via, through, near',
+                phrase: 'by means of'
+            },
+            'cabbage': {
+                meaning: '卷心菜；洋白菜',
+                synonym: 'lettuce, greens, vegetable',
+                phrase: 'cabbage patch'
+            },
+            'cabin': {
+                meaning: '小屋；船舱；机舱',
+                synonym: 'cottage, hut, compartment',
+                phrase: 'log cabin'
+            },
+            'cabinet': {
+                meaning: '内阁；橱柜；陈列柜',
+                synonym: 'cupboard, closet, council',
+                phrase: 'kitchen cabinet'
+            },
+            'cable': {
+                meaning: '电缆；缆绳；电报',
+                synonym: 'wire, rope, telegram',
+                phrase: 'cable television'
+            },
+            'cafe': {
+                meaning: '咖啡馆；小餐馆',
+                synonym: 'coffee shop, restaurant',
+                phrase: 'internet cafe'
+            },
+            'cage': {
+                meaning: '笼子；囚禁；电梯轿厢',
+                synonym: 'enclosure, pen, confine',
+                phrase: 'bird cage'
+            },
+            'cake': {
+                meaning: '蛋糕；饼；块状物',
+                synonym: 'pastry, dessert, block',
+                phrase: 'birthday cake'
+            },
+            'calculate': {
+                meaning: '计算；估计；计划',
+                synonym: 'computation, mathematics',
+                phrase: 'calculate result'
+            },
+            'call': {
+                meaning: '呼叫；称呼；访问',
+                synonym: 'shout, name, visit',
+                phrase: 'call on'
+            },
+            'calm': {
+                meaning: '平静的；镇静的；无风的',
+                synonym: 'peaceful, quiet, still',
+                phrase: 'calm down'
+            },
+            'camel': {
+                meaning: '骆驼；驼色；打捞机',
+                synonym: 'dromedary, beast of burden',
+                phrase: 'camel hair'
+            },
+            'camera': {
+                meaning: '照相机；摄影机',
+                synonym: 'photographic equipment',
+                phrase: 'digital camera'
+            },
+            'camp': {
+                meaning: '露营；营地；阵营',
+                synonym: 'encampment, site, faction',
+                phrase: 'summer camp'
+            },
+            'campaign': {
+                meaning: '运动；战役；活动',
+                synonym: 'movement, battle, drive',
+                phrase: 'advertising campaign'
+            },
+            'campus': {
+                meaning: '校园；大学校园',
+                synonym: 'school grounds, college',
+                phrase: 'campus life'
+            },
+            'can': {
+                meaning: '能；可以；罐头',
+                synonym: 'able to, may, tin',
+                phrase: 'can do'
+            },
+            'canal': {
+                meaning: '运河；渠道；管',
+                synonym: 'waterway, channel, tube',
+                phrase: 'panama canal'
+            },
+            'cancel': {
+                meaning: '取消；删去；抵消',
+                synonym: 'abolish, delete, offset',
+                phrase: 'cancel appointment'
+            },
+            'cancer': {
+                meaning: '癌症；巨蟹座；弊端',
+                synonym: 'malignancy, tumor, crab',
+                phrase: 'lung cancer'
+            },
+            'candidate': {
+                meaning: '候选人；应试者；报考者',
+                synonym: 'applicant, nominee, contender',
+                phrase: 'presidential candidate'
+            },
+            'candle': {
+                meaning: '蜡烛；烛光；烛形物',
+                synonym: 'taper, wax light, light',
+                phrase: 'candle light'
+            },
+            'candy': {
+                meaning: '糖果；冰糖；甜食',
+                synonym: 'sweet, confection, dessert',
+                phrase: 'candy store'
+            },
+            'cap': {
+                meaning: '帽子；盖子；覆盖',
+                synonym: 'hat, lid, cover',
+                phrase: 'put on cap'
+            },
+            'capable': {
+                meaning: '有能力的；能干的；有才能的',
+                synonym: 'able, competent, skilled',
+                phrase: 'capable of'
+            },
+            'capacity': {
+                meaning: '容量；能力；职位',
+                synonym: 'volume, ability, position',
+                phrase: 'full capacity'
+            },
+            'capital': {
+                meaning: '首都；资本；大写的',
+                synonym: 'metropolis, money, major',
+                phrase: 'capital city'
+            },
+            'captain': {
+                meaning: '船长；队长；上尉',
+                synonym: 'commander, leader, pilot',
+                phrase: 'ship captain'
+            },
+            'capture': {
+                meaning: '捕获；占领；记录',
+                synonym: 'catch, seize, record',
+                phrase: 'capture moment'
+            },
+            'car': {
+                meaning: '汽车；车辆；车厢',
+                synonym: 'automobile, vehicle, carriage',
+                phrase: 'drive car'
+            },
+            'carbon': {
+                meaning: '碳；碳棒；复写本',
+                synonym: 'charcoal, copy, element',
+                phrase: 'carbon dioxide'
+            },
+            'card': {
+                meaning: '卡片；名片；纸牌',
+                synonym: 'cardboard, playing card, tag',
+                phrase: 'credit card'
+            },
+            'care': {
+                meaning: '关心；照顾；忧虑',
+                synonym: 'concern, attention, worry',
+                phrase: 'take care of'
+            },
+            'career': {
+                meaning: '生涯；职业；经历',
+                synonym: 'profession, occupation, life',
+                phrase: 'career path'
+            },
+            'careful': {
+                meaning: '小心的；仔细的；谨慎的',
+                synonym: 'cautious, attentive, meticulous',
+                phrase: 'be careful'
+            },
+            'careless': {
+                meaning: '粗心的；疏忽的；无忧无虑的',
+                synonym: 'negligent, inattentive, reckless',
+                phrase: 'careless mistake'
+            },
+            'cargo': {
+                meaning: '货物；船货；负担',
+                synonym: 'goods, freight, load',
+                phrase: 'cargo ship'
+            },
+            'carpet': {
+                meaning: '地毯；覆盖；铺地毯',
+                synonym: 'rug, covering, floor covering',
+                phrase: 'red carpet'
+            },
+            'carrot': {
+                meaning: '胡萝卜；诱饵；好处',
+                synonym: 'vegetable, incentive, reward',
+                phrase: 'carrot and stick'
+            },
+            'carry': {
+                meaning: '携带；搬运；传送',
+                synonym: 'transport, bear, convey',
+                phrase: 'carry out'
+            },
+            'cart': {
+                meaning: '手推车；二轮马车；购物车',
+                synonym: 'trolley, wagon, pushcart',
+                phrase: 'shopping cart'
+            },
+            'case': {
+                meaning: '情况；案例；箱子',
+                synonym: 'situation, instance, container',
+                phrase: 'in case of'
+            },
+            'cash': {
+                meaning: '现金；兑现；付现',
+                synonym: 'money, currency, pay',
+                phrase: 'cash on delivery'
+            },
+            'cassette': {
+                meaning: '盒式磁带；暗盒；胶卷暗盒',
+                synonym: 'tape, cartridge, container',
+                phrase: 'cassette tape'
+            },
+            'cast': {
+                meaning: '投；铸造；演员阵容',
+                synonym: 'throw, mold, actors',
+                phrase: 'cast a spell'
+            },
+            'castle': {
+                meaning: '城堡；象棋车；保护',
+                synonym: 'fortress, palace, protect',
+                phrase: 'medieval castle'
+            },
+            'casual': {
+                meaning: '偶然的；随便的；非正式的',
+                synonym: 'informal, occasional, random',
+                phrase: 'casual clothes'
+            },
+            'cat': {
+                meaning: '猫；猫科动物；恶妇',
+                synonym: 'feline, kitty, puss',
+                phrase: 'let cat out'
+            },
+            'catalog': {
+                meaning: '目录；编目录；登记',
+                synonym: 'list, index, register',
+                phrase: 'product catalog'
+            },
+            'catch': {
+                meaning: '抓住；赶上；感染',
+                synonym: 'grab, seize, contract',
+                phrase: 'catch cold'
+            },
+            'category': {
+                meaning: '类别；范畴；种类',
+                synonym: 'class, group, type',
+                phrase: 'product category'
+            },
+            'cattle': {
+                meaning: '牛；牲口；家畜',
+                synonym: 'livestock, cows, herd',
+                phrase: 'dairy cattle'
+            },
+            'cause': {
+                meaning: '原因；事业；引起',
+                synonym: 'reason, purpose, bring about',
+                phrase: 'cause and effect'
+            },
+            'caution': {
+                meaning: '小心；警告；谨慎',
+                synonym: 'warning, care, prudence',
+                phrase: 'with caution'
+            },
+            'cave': {
+                meaning: '洞穴；山洞；凹陷',
+                synonym: 'cavern, hollow, grotto',
+                phrase: 'cave in'
+            },
+            'ceiling': {
+                meaning: '天花板；上限；顶篷',
+                synonym: 'roof, limit, overhead',
+                phrase: 'glass ceiling'
+            },
+            'celebrate': {
+                meaning: '庆祝；赞美；举行',
+                synonym: 'honor, commemorate, observe',
+                phrase: 'celebrate success'
+            },
+            'cell': {
+                meaning: '细胞；电池；小牢房',
+                synonym: 'unit, room, battery',
+                phrase: 'prison cell'
+            },
+            'cement': {
+                meaning: '水泥；胶合剂；巩固',
+                synonym: 'concrete, binder, solidify',
+                phrase: 'cement mixer'
+            },
+            'cent': {
+                meaning: '分；分币；百',
+                synonym: 'penny, coin, hundred',
+                phrase: 'per cent'
+            },
+            'center': {
+                meaning: '中心；中央；中锋',
+                synonym: 'middle, core, hub',
+                phrase: 'shopping center'
+            },
+            'century': {
+                meaning: '世纪；百年；板球队',
+                synonym: 'hundred years, era, age',
+                phrase: 'twenty-first century'
+            },
+            'ceremony': {
+                meaning: '典礼；仪式；礼节',
+                synonym: 'ritual, rite, formalities',
+                phrase: 'opening ceremony'
+            },
+            'certain': {
+                meaning: '确定的；某些；肯定的',
+                synonym: 'sure, particular, definite',
+                phrase: 'for certain'
+            },
+            'certainly': {
+                meaning: '当然；必定；无疑',
+                synonym: 'definitely, surely, of course',
+                phrase: 'certainly not'
+            },
+            'certificate': {
+                meaning: '证书；证明；执照',
+                synonym: 'credential, license, diploma',
+                phrase: 'birth certificate'
+            },
+            'chain': {
+                meaning: '链条；连锁；束缚',
+                synonym: 'link, series, bind',
+                phrase: 'supply chain'
+            },
+            'chair': {
+                meaning: '椅子；主席；主持',
+                synonym: 'seat, chairman, preside',
+                phrase: 'electric chair'
+            },
+            'chairman': {
+                meaning: '主席；董事长；议长',
+                synonym: 'president, chairperson, head',
+                phrase: 'board chairman'
+            },
+            'chalk': {
+                meaning: '粉笔；白垩；用粉笔写',
+                synonym: 'limestone, gypsum, write',
+                phrase: 'chalk and talk'
+            },
+            'challenge': {
+                meaning: '挑战；质疑；考验',
+                synonym: 'test, question, contest',
+                phrase: 'face challenge'
+            },
+            'champion': {
+                meaning: '冠军；拥护者；战士',
+                synonym: 'winner, supporter, defender',
+                phrase: 'world champion'
+            },
+            'chance': {
+                meaning: '机会；可能性；偶然',
+                synonym: 'opportunity, possibility, luck',
+                phrase: 'by chance'
+            },
+            'change': {
+                meaning: '改变；变化；零钱',
+                synonym: 'alter, vary, coins',
+                phrase: 'make change'
+            },
+            'channel': {
+                meaning: '频道；海峡；渠道',
+                synonym: 'waterway, medium, conduit',
+                phrase: 'TV channel'
+            },
+            'chapter': {
+                meaning: '章节；分会；时期',
+                synonym: 'section, part, period',
+                phrase: 'first chapter'
+            },
+            'character': {
+                meaning: '性格；字符；特征',
+                synonym: 'personality, nature, figure',
+                phrase: 'main character'
+            },
+            'characteristic': {
+                meaning: '特征；特性；特色的',
+                synonym: 'feature, trait, distinctive',
+                phrase: 'characteristic feature'
+            },
+            'charge': {
+                meaning: '收费；指控；充电',
+                synonym: 'price, accuse, load',
+                phrase: 'in charge of'
+            },
+            'charity': {
+                meaning: '慈善；施舍；慈善团体',
+                synonym: 'benevolence, donation, mercy',
+                phrase: 'charity work'
+            },
+            'charm': {
+                meaning: '魅力；咒语；吸引',
+                synonym: 'attraction, spell, fascinate',
+                phrase: 'good luck charm'
+            },
+            'chart': {
+                meaning: '图表；航海图；制图',
+                synonym: 'graph, map, diagram',
+                phrase: 'flow chart'
+            },
+            'chase': {
+                meaning: '追逐；追求；雕刻',
+                synonym: 'pursue, follow, engrave',
+                phrase: 'chase after'
+            },
+            'cheap': {
+                meaning: '便宜的；廉价的；劣质的',
+                synonym: 'inexpensive, low-cost, poor',
+                phrase: 'cheap price'
+            },
+            'cheat': {
+                meaning: '欺骗；作弊；骗子',
+                synonym: 'deceive, trick, fraud',
+                phrase: 'cheat on'
+            },
+            'check': {
+                meaning: '检查；支票；核对',
+                synonym: 'examine, verify, bill',
+                phrase: 'check in'
+            },
+            'cheek': {
+                meaning: '脸颊；厚颜； cheeky',
+                synonym: 'face, side, impudent',
+                phrase: 'rosy cheeks'
+            },
+            'cheer': {
+                meaning: '欢呼；喝彩；使高兴',
+                synonym: 'shout, applaud, encourage',
+                phrase: 'cheer up'
+            },
+            'cheese': {
+                meaning: '奶酪；干酪；停止',
+                synonym: 'dairy product, curd, stop',
+                phrase: 'cheese cake'
+            },
+            'chemical': {
+                meaning: '化学的；化学制品',
+                synonym: 'chemical, substance, reaction',
+                phrase: 'chemical industry'
+            },
+            'chemist': {
+                meaning: '化学家；药剂师；炼金术士',
+                synonym: 'pharmacist, druggist, alchemist',
+                phrase: 'local chemist'
+            },
+            'chemistry': {
+                meaning: '化学；化学性质；关系',
+                synonym: 'chemical science, reaction, relationship',
+                phrase: 'organic chemistry'
+            },
+            'cheque': {
+                meaning: '支票；检查；空白',
+                synonym: 'check, bill, examine',
+                phrase: 'cash a cheque'
+            },
+            'chess': {
+                meaning: '国际象棋；棋；制胜',
+                synonym: 'board game, strategy, checkmate',
+                phrase: 'play chess'
+            },
+            'chest': {
+                meaning: '胸部；箱子；金库',
+                synonym: 'breast, box, treasury',
+                phrase: 'chest of drawers'
+            },
+            'chew': {
+                meaning: '咀嚼；思量；折磨',
+                synonym: 'masticate, grind, torment',
+                phrase: 'chew gum'
+            },
+            'chicken': {
+                meaning: '鸡；鸡肉；胆小鬼',
+                synonym: 'hen, fowl, coward',
+                phrase: 'fried chicken'
+            },
+            'chief': {
+                meaning: '首领；主要的；酋长',
+                synonym: 'leader, main, head',
+                phrase: 'chief executive'
+            },
+            'child': {
+                meaning: '孩子；儿童；产物',
+                synonym: 'kid, offspring, descendant',
+                phrase: 'only child'
+            },
+            'childhood': {
+                meaning: '童年；幼年；早期',
+                synonym: 'youth, infancy, early years',
+                phrase: 'happy childhood'
+            },
+            'chill': {
+                meaning: '寒冷；使变冷；寒意',
+                synonym: 'cold, cool, freeze',
+                phrase: 'chill out'
+            },
+            'chimney': {
+                meaning: '烟囱；玻璃罩；灯罩',
+                synonym: 'smokestack, flue, vent',
+                phrase: 'chimney sweep'
+            },
+            'chin': {
+                meaning: '下巴；颏；聊天',
+                synonym: 'jaw, talk, chat',
+                phrase: 'keep chin up'
+            },
+            'china': {
+                meaning: '中国；瓷器；陶瓷',
+                synonym: 'porcelain, ceramic, pottery',
+                phrase: 'made in china'
+            },
+            'chip': {
+                meaning: '碎片；芯片；缺口',
+                synonym: 'fragment, piece, microchip',
+                phrase: 'potato chip'
+            },
+            'chocolate': {
+                meaning: '巧克力；巧克力色；巧克力糖',
+                synonym: 'cocoa, candy, brown',
+                phrase: 'chocolate bar'
+            },
+            'choice': {
+                meaning: '选择；精选品；adj. 精选的',
+                synonym: 'selection, option, chosen',
+                phrase: 'make choice'
+            },
+            'choke': {
+                meaning: '窒息；阻塞；哽住',
+                synonym: 'suffocate, block, strangle',
+                phrase: 'choke on'
+            },
+            'choose': {
+                meaning: '选择；挑选；决定',
+                synonym: 'select, pick, decide',
+                phrase: 'choose between'
+            },
+            'chop': {
+                meaning: '砍；劈；排骨',
+                synonym: 'cut, hack, cleave',
+                phrase: 'pork chop'
+            },
+            'Christian': {
+                meaning: '基督徒；基督教的',
+                synonym: 'believer, religious, church',
+                phrase: 'Christian church'
+            },
+            'Christmas': {
+                meaning: '圣诞节',
+                synonym: 'Xmas, holiday, festival',
+                phrase: 'Merry Christmas'
+            },
+            'church': {
+                meaning: '教堂；礼拜；教会',
+                synonym: 'chapel, cathedral, denomination',
+                phrase: 'go to church'
+            },
+            'cigarette': {
+                meaning: '香烟；纸烟',
+                synonym: 'smoke, tobacco, fag',
+                phrase: 'smoke cigarette'
+            },
+            'cinema': {
+                meaning: '电影院；电影；电影业',
+                synonym: 'movie theater, film, movies',
+                phrase: 'go to cinema'
+            },
+            'circle': {
+                meaning: '圆；圈子；循环',
+                synonym: 'ring, circuit, cycle',
+                phrase: 'full circle'
+            },
+            'circuit': {
+                meaning: '电路；环行；巡回',
+                synonym: 'electrical path, loop, tour',
+                phrase: 'integrated circuit'
+            },
+            'circumstance': {
+                meaning: '情况；环境；境况',
+                synonym: 'situation, condition, event',
+                phrase: 'under circumstances'
+            },
+            'cite': {
+                meaning: '引用；举例；传唤',
+                synonym: 'quote, mention, summon',
+                phrase: 'cite example'
+            },
+            'citizen': {
+                meaning: '公民；市民；居民',
+                synonym: 'resident, inhabitant, national',
+                phrase: 'US citizen'
+            },
+            'city': {
+                meaning: '城市；都市；全市',
+                synonym: 'town, metropolis, urban',
+                phrase: 'city center'
+            },
+            'civil': {
+                meaning: '公民的；国内的；文明的',
+                synonym: 'public, domestic, polite',
+                phrase: 'civil war'
+            },
+            'civilization': {
+                meaning: '文明；文化；开
