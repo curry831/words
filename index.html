@@ -10,196 +10,735 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSP兼容性处理 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://*.firebaseio.com https://*.firebase.com https://cdn.jsdelivr.net; connect-src 'self' https://*.firebaseio.com https://*.firebase.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.gstatic.com;">
     <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             font-family: 'Noto Sans SC', sans-serif;
+            color: var(--text-primary);
+            background-color: var(--bg-secondary);
+            margin: 0;
+            padding: 0;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
         .fade-in {
             animation: fadeIn 0.3s ease-out;
         }
+
         .mastered {
             text-decoration: line-through;
             opacity: 0.6;
         }
+
         #encouragement-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
             transform: translateX(-50%) translateY(-100px);
+            background-color: var(--success-color);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            z-index: 1000;
         }
+
         #encouragement-toast.show {
-            transform: translateX(-50%) translateY(20px);
+            transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
+
         .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            padding: 16px;
         }
+
         .modal-backdrop.show {
             opacity: 1;
             visibility: visible;
         }
+
         .modal-content {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
             transform: scale(0.9);
             transition: transform 0.3s ease-in-out;
+            width: 100%;
         }
+
         .modal-backdrop.show .modal-content {
             transform: scale(1);
         }
-        @media (max-width: 640px) {
-            button, .touch-target {
-                min-height: 44px;
-                min-width: 44px;
-            }
-            input, textarea {
-                font-size: 16px;
-            }
-            .modal-content {
-                margin: 20px;
-                max-height: calc(100vh - 40px);
-            }
-        }
-        @media (min-width: 641px) and (max-width: 1024px) {
-            .container {
-                padding-left: 2rem;
-                padding-right: 2rem;
-            }
-        }
-        * {
-            -webkit-overflow-scrolling: touch;
-        }
-        .no-select {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
+
         .login-container {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
         }
+
+        .login-card {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 400px;
+            padding: 24px;
+        }
+
         .sync-status {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.7);
             color: white;
-            padding: 8px 12px;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 12px;
-            display: none;
+            font-size: 14px;
             z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
         }
+
         .sync-status.show {
-            display: block;
+            opacity: 1;
+            transform: translateY(0);
         }
+
         .loading-spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
+            border-top: 3px solid white;
             width: 20px;
             height: 20px;
             animation: spin 1s linear infinite;
             display: inline-block;
             margin-right: 8px;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* 加载状态样式 */
+
         .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.9);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 9999;
         }
+
         .loading-content {
             text-align: center;
+            padding: 20px;
         }
+
+        .loading-spinner-lg {
+            border: 4px solid rgba(79, 70, 229, 0.2);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* 导入预览表格样式 */
         .import-preview-table {
             max-height: 300px;
             overflow-y: auto;
-            margin: 15px 0;
+            margin: 16px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
         }
+
         .import-preview-table table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
         }
+
         .import-preview-table th,
         .import-preview-table td {
-            border: 1px solid #e5e7eb;
-            padding: 8px;
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
             text-align: left;
         }
+
         .import-preview-table th {
-            background-color: #f9fafb;
+            background-color: var(--bg-secondary);
             position: sticky;
             top: 0;
+            font-weight: 600;
         }
+
         .import-preview-table tr:nth-child(even) {
-            background-color: #f9fafb;
+            background-color: var(--bg-secondary);
         }
-        .import-preview-table tr:hover {
-            background-color: #f3f4f6;
-        }
+
         /* 文件拖放区域样式 */
         .file-drop-zone {
-            border: 2px dashed #d1d5db;
+            border: 2px dashed var(--border-color);
             border-radius: 8px;
-            padding: 20px;
+            padding: 24px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            background-color: var(--bg-secondary);
         }
+
         .file-drop-zone:hover {
-            border-color: #6366f1;
-            background-color: #f9fafb;
+            border-color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.05);
         }
+
         .file-drop-zone.dragover {
-            border-color: #6366f1;
-            background-color: #ede9fe;
+            border-color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.1);
         }
+
         .file-drop-zone input[type="file"] {
             display: none;
         }
+
         .error-message {
-            color: #ef4444;
+            color: var(--danger-color);
             font-size: 14px;
             margin-top: 8px;
-            padding: 8px;
-            background-color: #fee2e2;
-            border-radius: 4px;
+            padding: 12px;
+            background-color: rgba(239, 68, 68, 0.1);
+            border-radius: 6px;
             display: none;
         }
+
         .error-message.show {
             display: block;
+        }
+
+        /* 网络状态指示器 */
+        .network-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+
+        .network-indicator.online {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .network-indicator.offline {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .network-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 1.5;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-block {
+            display: flex;
+            width: 100%;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background-color: var(--bg-primary);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* 单词卡片样式 */
+        .word-card {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .word-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .word-mastered {
+            background-color: var(--bg-secondary);
+        }
+
+        .word-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .word-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .word-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .word-action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-secondary);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 18px;
+        }
+
+        .word-action-btn:hover {
+            transform: scale(1.1);
+            background-color: var(--border-color);
+        }
+
+        .word-detail {
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .word-detail strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* 统计卡片样式 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .modal-content {
+                max-width: 100%;
+                margin: 0;
+                border-radius: 12px 12px 0 0;
+                max-height: 90vh;
+            }
+            
+            .modal-backdrop {
+                align-items: flex-end;
+            }
+            
+            .word-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .word-actions {
+                align-self: flex-end;
+            }
+        }
+
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .modal-content {
+                max-width: 600px;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .modal-content {
+                max-width: 800px;
+            }
+        }
+
+        /* 导入导出按钮样式 */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* 复选框样式 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .checkbox-group label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* 导入选项样式 */
+        .import-options {
+            margin-bottom: 16px;
+        }
+
+        .import-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .import-option input[type="radio"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .import-option label {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        /* 页面标题样式 */
+        .page-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* 用户信息栏样式 */
+        .user-bar {
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .user-action {
+            font-size: 14px;
+            color: var(--primary-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-action:hover {
+            text-decoration: underline;
+        }
+
+        .user-action.danger {
+            color: var(--danger-color);
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* 预览和摘要样式 */
+        .import-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+        }
+
+        .import-summary-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .import-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 无数据提示样式 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-subtext {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* 日期标题样式 */
+        .date-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 单词列表样式 */
+        .word-list {
+            margin-top: 16px;
+        }
+
+        /* 响应式触摸目标 */
+        @media (pointer: coarse) {
+            .btn, .word-action-btn, .user-action {
+                min-height: 44px;
+                min-width: 44px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- 网络状态指示器 -->
+    <div id="network-indicator" class="network-indicator">
+        <span id="network-status-text">网络状态</span>
+    </div>
+
     <!-- 加载遮罩 -->
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-content">
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner-lg"></div>
             <p class="text-gray-700 mt-2">正在初始化应用...</p>
             <p id="loading-status" class="text-sm text-gray-500 mt-1"></p>
         </div>
@@ -207,51 +746,46 @@
 
     <!-- 登录界面 -->
     <div id="login-container" class="login-container" style="display: none;">
-        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md m-4">
+        <div class="login-card">
             <h2 class="text-2xl font-bold text-center mb-6">📚 每日单词记录本</h2>
             
-            <div class="space-y-4">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                    <input type="text" id="username" required
-                           class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="输入您的用户名">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" id="username" required class="form-input" placeholder="输入您的用户名">
                 </div>
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
-                    <input type="password" id="password" required
-                           class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="输入您的密码">
+                <div class="form-group">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" id="password" required class="form-input" placeholder="输入您的密码">
                 </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="use-local" class="mr-2">
-                    <label for="use-local" class="text-sm text-gray-600">使用本地存储（离线模式）</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="use-local">
+                    <label for="use-local">使用本地存储（离线模式）</label>
                 </div>
-                <button id="login-btn" 
-                        class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center">
+                <button type="submit" id="login-btn" class="btn btn-primary btn-block">
                     <span id="login-text">登录</span>
                     <div id="login-spinner" class="loading-spinner" style="display: none;"></div>
                 </button>
                 <p class="text-center text-sm text-gray-500 mt-4">
                     首次使用将自动创建账户
                 </p>
-            </div>
+            </form>
         </div>
     </div>
 
     <!-- 主应用界面 -->
     <div id="app-container" class="hidden">
         <!-- 鼓励提示容器 -->
-        <div id="encouragement-toast" class="fixed top-4 left-1/2 z-50 bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
+        <div id="encouragement-toast">
             <span id="encouragement-text"></span>
         </div>
 
         <!-- 导出模态框 -->
-        <div id="export-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div id="export-modal" class="modal-backdrop">
+            <div class="modal-content">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">选择导出日期</h3>
-                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none touch-target">&times;</button>
+                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
                 </div>
                 <div id="export-options" class="space-y-2">
                     <!-- 选项将在这里动态生成 -->
@@ -260,11 +794,11 @@
         </div>
 
         <!-- 导入模态框 -->
-        <div id="import-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div id="import-modal" class="modal-backdrop">
+            <div class="modal-content">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">导入Excel文件</h3>
-                    <button id="close-import-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none touch-target">&times;</button>
+                    <button id="close-import-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
                 </div>
                 
                 <!-- 文件拖放区域 -->
@@ -283,17 +817,15 @@
                 <div id="import-error" class="error-message"></div>
 
                 <!-- 导入选项 -->
-                <div class="mb-4">
+                <div class="import-options">
                     <h4 class="text-sm font-medium text-gray-700 mb-2">导入选项</h4>
-                    <div class="space-y-2">
-                        <label class="flex items-center">
-                            <input type="radio" name="import-option" value="merge" checked class="mr-2">
-                            <span class="text-sm">合并导入（保留现有数据，跳过重复单词）</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="import-option" value="replace" class="mr-2">
-                            <span class="text-sm">替换导入（删除现有数据，完全替换）</span>
-                        </label>
+                    <div class="import-option">
+                        <input type="radio" name="import-option" id="merge-option" value="merge" checked>
+                        <label for="merge-option">合并导入（保留现有数据，跳过重复单词）</label>
+                    </div>
+                    <div class="import-option">
+                        <input type="radio" name="import-option" id="replace-option" value="replace">
+                        <label for="replace-option">替换导入（删除现有数据，完全替换）</label>
                     </div>
                 </div>
 
@@ -305,15 +837,11 @@
                             <!-- 预览数据将在这里显示 -->
                         </table>
                     </div>
-                    <div class="flex justify-between items-center mt-4">
-                        <p id="import-summary" class="text-sm text-gray-600"></p>
-                        <div class="space-x-2">
-                            <button id="cancel-import-btn" class="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
-                                取消
-                            </button>
-                            <button id="confirm-import-btn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
-                                确认导入
-                            </button>
+                    <div class="import-summary">
+                        <p id="import-summary-text" class="import-summary-text"></p>
+                        <div class="import-actions">
+                            <button id="cancel-import-btn" class="btn btn-secondary">取消</button>
+                            <button id="confirm-import-btn" class="btn btn-primary">确认导入</button>
                         </div>
                     </div>
                 </div>
@@ -327,102 +855,88 @@
         </div>
 
         <!-- 用户信息栏 -->
-        <div class="bg-white shadow-sm border-b sticky top-0 z-30">
-            <div class="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-600">用户:</span>
-                    <span id="current-user" class="font-medium text-gray-800"></span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <button id="sync-btn" class="text-sm text-blue-600 hover:text-blue-700 flex items-center">
-                        <div id="sync-spinner" class="loading-spinner" style="display: none;"></div>
-                        <span id="sync-text">手动同步</span>
-                    </button>
-                    <button id="logout-btn" class="text-sm text-red-600 hover:text-red-700">
-                        退出登录
-                    </button>
-                </div>
+        <div class="user-bar">
+            <div class="user-info">
+                <span class="user-label">用户:</span>
+                <span id="current-user" class="user-name"></span>
+            </div>
+            <div class="user-actions">
+                <button id="sync-btn" class="user-action">
+                    <div id="sync-spinner" class="loading-spinner" style="display: none;"></div>
+                    <span id="sync-text">手动同步</span>
+                </button>
+                <button id="logout-btn" class="user-action danger">退出登录</button>
             </div>
         </div>
 
-        <div class="container mx-auto p-3 sm:p-4 md:p-6 lg:p-8 max-w-4xl">
+        <div class="container">
             <!-- Header -->
-            <header class="text-center mb-6 sm:mb-8">
-                <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">📚 每日单词记录本</h1>
-                <p class="text-gray-600 text-sm sm:text-base">记录你的每一点进步</p>
+            <header class="page-header">
+                <h1 class="page-title">📚 每日单词记录本</h1>
+                <p class="page-subtitle">记录你的每一点进步</p>
             </header>
 
             <!-- Main Content -->
             <main>
                 <!-- Add Word Form -->
-                <section class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
-                    <h2 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-4">添加新单词</h2>
-                    <form id="word-form" class="space-y-4">
-                        <div>
-                            <label for="word-input" class="block text-sm font-medium text-gray-700 mb-1">单词</label>
-                            <input type="text" id="word-input" required
-                                   class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                   placeholder="e.g., serendipity" autocomplete="off">
+                <section class="card">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">添加新单词</h2>
+                    <form id="word-form">
+                        <div class="form-group">
+                            <label for="word-input" class="form-label">单词</label>
+                            <input type="text" id="word-input" required class="form-input" placeholder="e.g., serendipity" autocomplete="off">
                         </div>
-                        <div>
-                            <label for="meaning-input" class="block text-sm font-medium text-gray-700 mb-1">释义</label>
-                            <textarea id="meaning-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
+                        <div class="form-group">
+                            <label for="meaning-input" class="form-label">释义</label>
+                            <textarea id="meaning-input" class="form-textarea" placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
                         </div>
-                        <div>
-                            <label for="synonym-input" class="block text-sm font-medium text-gray-700 mb-1">同义词</label>
-                            <textarea id="synonym-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., fortune, luck, fluke"></textarea>
+                        <div class="form-group">
+                            <label for="synonym-input" class="form-label">同义词</label>
+                            <textarea id="synonym-input" class="form-textarea" placeholder="e.g., fortune, luck, fluke"></textarea>
                         </div>
-                        <div>
-                            <label for="phrase-input" class="block text-sm font-medium text-gray-700 mb-1">词组</label>
-                            <textarea id="phrase-input" rows="2"
-                                      class="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-base"
-                                      placeholder="e.g., a stroke of serendipity"></textarea>
+                        <div class="form-group">
+                            <label for="phrase-input" class="form-label">词组</label>
+                            <textarea id="phrase-input" class="form-textarea" placeholder="e.g., a stroke of serendipity"></textarea>
                         </div>
-                        <button type="submit"
-                                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 touch-target text-base">
+                        <button type="submit" class="btn btn-primary btn-block">
                             添加单词
                         </button>
                     </form>
                 </section>
 
                 <!-- Export and Import Section -->
-                <section class="mb-6 sm:mb-8">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <button id="export-trigger-btn"
-                                class="bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center touch-target text-base">
+                <section class="card">
+                    <div class="action-buttons">
+                        <button id="export-trigger-btn" class="btn btn-success">
                             📊 导出为Excel
                         </button>
-                        <button id="import-trigger-btn"
-                                class="bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center justify-center touch-target text-base">
+                        <button id="import-trigger-btn" class="btn btn-primary">
                             📥 导入Excel文件
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
-                            <p class="text-gray-500 text-xs sm:text-sm">总词汇量</p>
-                            <p id="total-words" class="text-xl sm:text-2xl font-bold text-indigo-600">0</p>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <p class="stat-label">总词汇量</p>
+                            <p id="total-words" class="stat-value">0</p>
                         </div>
-                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
-                            <p class="text-gray-500 text-xs sm:text-sm">学习天数</p>
-                            <p id="study-days" class="text-2xl font-bold text-green-600">0</p>
+                        <div class="stat-card">
+                            <p class="stat-label">学习天数</p>
+                            <p id="study-days" class="stat-value">0</p>
                         </div>
-                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
-                            <p class="text-gray-500 text-xs sm:text-sm">今日新词</p>
-                            <p id="today-words" class="text-xl sm:text-2xl font-bold text-blue-600">0</p>
+                        <div class="stat-card">
+                            <p class="stat-label">今日新词</p>
+                            <p id="today-words" class="stat-value">0</p>
                         </div>
-                        <div class="bg-white p-3 sm:p-4 rounded-lg shadow text-center">
-                            <p class="text-gray-500 text-xs sm:text-sm">已掌握</p>
-                            <p id="mastered-words" class="text-xl sm:text-2xl font-bold text-purple-600">0</p>
+                        <div class="stat-card">
+                            <p class="stat-label">已掌握</p>
+                            <p id="mastered-words" class="stat-value">0</p>
                         </div>
                     </div>
                 </section>
 
                 <!-- Word List -->
-                <section id="word-list-container" class="space-y-4 sm:space-y-6">
+                <section id="word-list-container" class="word-list">
                     <!-- Words will be dynamically inserted here -->
                 </section>
             </main>
@@ -447,53 +961,218 @@
             measurementId: "G-982EDQG7X0"
         };
 
-        // Firebase SDK 加载器
+        // 增强的 Firebase SDK 加载器
         class FirebaseLoader {
             constructor() {
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingStatus = document.getElementById('loading-status');
+                this.retryCount = 0;
+                this.maxRetries = 3;
+                this.loadTimeout = 15000; // 15秒超时
+                this.isTablet = this.detectTablet();
+                this.networkIndicator = document.getElementById('network-indicator');
+                this.networkStatusText = document.getElementById('network-status-text');
+                
+                // 初始化网络状态监听
+                this.initNetworkStatusListener();
+            }
+
+            // 检测是否为平板设备
+            detectTablet() {
+                const userAgent = navigator.userAgent.toLowerCase();
+                const isAndroidTablet = /android/.test(userAgent) && !/mobile/.test(userAgent);
+                const isIPad = /ipad/.test(userAgent) || (/macintosh/.test(userAgent) && 'ontouchend' in document);
+                const isTabletSize = window.innerWidth >= 768 && window.innerWidth <= 1024;
+                return isAndroidTablet || isIPad || isTabletSize;
+            }
+
+            // 初始化网络状态监听
+            initNetworkStatusListener() {
+                // 初始状态
+                this.updateNetworkStatus(navigator.onLine);
+                
+                // 监听网络状态变化
+                window.addEventListener('online', () => {
+                    this.updateNetworkStatus(true);
+                });
+                
+                window.addEventListener('offline', () => {
+                    this.updateNetworkStatus(false);
+                });
+            }
+
+            // 更新网络状态显示
+            updateNetworkStatus(isOnline) {
+                if (isOnline) {
+                    this.networkIndicator.className = 'network-indicator online show';
+                    this.networkStatusText.textContent = '网络已连接';
+                    setTimeout(() => {
+                        this.networkIndicator.classList.remove('show');
+                    }, 3000);
+                } else {
+                    this.networkIndicator.className = 'network-indicator offline show';
+                    this.networkStatusText.textContent = '网络已断开';
+                }
+            }
+
+            // 检查网络连接
+            async checkNetworkConnection() {
+                return new Promise((resolve) => {
+                    if (!navigator.onLine) {
+                        resolve(false);
+                        return;
+                    }
+                    
+                    // 尝试连接到Firebase服务器
+                    const img = new Image();
+                    img.onload = () => resolve(true);
+                    img.onerror = () => resolve(false);
+                    
+                    // 使用Firebase的图标作为测试连接
+                    img.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                    
+                    // 设置超时
+                    setTimeout(() => {
+                        resolve(false);
+                    }, 5000);
+                });
             }
 
             async loadFirebaseSDK() {
                 this.showLoading('正在加载 Firebase SDK...');
                 
                 try {
-                    // 尝试加载 Firebase
-                    await this.loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js');
-                    await this.loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js');
-                    await this.loadScript('https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js');
+                    // 先检查网络连接
+                    const isNetworkAvailable = await this.checkNetworkConnection();
+                    if (!isNetworkAvailable) {
+                        throw new Error('网络连接不可用');
+                    }
                     
-                    // 等待脚本执行
-                    await this.delay(1000);
+                    // 平板设备使用更长的超时时间
+                    const timeout = this.isTablet ? this.loadTimeout * 1.5 : this.loadTimeout;
                     
-                    if (typeof firebase !== 'undefined') {
+                    // 尝试加载 Firebase，带超时控制
+                    await Promise.race([
+                        this.loadFirebaseScripts(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Firebase SDK 加载超时')), timeout)
+                        )
+                    ]);
+                    
+                    // 平板设备等待更长时间
+                    const waitTime = this.isTablet ? 2000 : 1000;
+                    await this.delay(waitTime);
+                    
+                    // 更可靠的Firebase初始化检查
+                    const isInitialized = await this.checkFirebaseInitialized();
+                    
+                    if (isInitialized) {
                         this.showLoading('✅ Firebase SDK 加载成功！');
                         await this.delay(500);
                         this.hideLoading();
                         return true;
                     } else {
-                        throw new Error('Firebase 未正确加载');
+                        throw new Error('Firebase 未正确初始化');
                     }
                 } catch (error) {
                     console.error('Firebase 加载失败:', error);
-                    this.showLoading('⚠️ Firebase 加载失败，将使用本地模式');
-                    await this.delay(2000);
-                    this.hideLoading();
-                    return false;
+                    this.retryCount++;
+                    
+                    if (this.retryCount < this.maxRetries) {
+                        this.showLoading(`⚠️ Firebase 加载失败，正在重试 (${this.retryCount}/${this.maxRetries})...`);
+                        await this.delay(2000);
+                        return this.loadFirebaseSDK();
+                    } else {
+                        this.showLoading('⚠️ Firebase 加载失败，将使用本地模式');
+                        await this.delay(2000);
+                        this.hideLoading();
+                        return false;
+                    }
                 }
             }
 
-            loadScript(src) {
+            async loadFirebaseScripts() {
+                // 定义多个CDN选项
+                const cdnOptions = [
+                    // 主要CDN
+                    {
+                        app: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js',
+                        database: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js',
+                        auth: 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js'
+                    },
+                    // 备用CDN
+                    {
+                        app: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-app-compat.js',
+                        database: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-database-compat.js',
+                        auth: 'https://cdn.jsdelivr.net/npm/firebase@9.15.0/firebase-auth-compat.js'
+                    }
+                ];
+                
+                let cdnIndex = 0;
+                let lastError = null;
+                
+                while (cdnIndex < cdnOptions.length) {
+                    try {
+                        await this.loadScript(cdnOptions[cdnIndex].app);
+                        await this.loadScript(cdnOptions[cdnIndex].database);
+                        await this.loadScript(cdnOptions[cdnIndex].auth);
+                        return; // 成功加载，退出循环
+                    } catch (error) {
+                        console.error(`使用CDN ${cdnIndex + 1} 加载Firebase失败:`, error);
+                        lastError = error;
+                        cdnIndex++;
+                        
+                        if (cdnIndex < cdnOptions.length) {
+                            this.showLoading(`⚠️ 切换到备用CDN...`);
+                            await this.delay(1000);
+                        }
+                    }
+                }
+                
+                // 所有CDN都失败了
+                throw lastError || new Error('所有CDN加载失败');
+            }
+
+            async loadScript(src) {
                 return new Promise((resolve, reject) => {
+                    // 检查脚本是否已加载
+                    if (document.querySelector(`script[src="${src}"]`)) {
+                        resolve();
+                        return;
+                    }
+                    
                     const script = document.createElement('script');
                     script.src = src;
                     script.async = true;
                     
                     script.onload = resolve;
-                    script.onerror = reject;
+                    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
                     
                     document.head.appendChild(script);
                 });
+            }
+
+            // 更可靠的Firebase初始化检查
+            async checkFirebaseInitialized() {
+                // 先检查基本对象是否存在
+                if (typeof firebase === 'undefined') {
+                    return false;
+                }
+                
+                // 然后检查关键方法是否可用
+                try {
+                    // 尝试访问firebase的关键部分，但不实际初始化
+                    const testApp = firebase.initializeApp;
+                    const testDB = firebase.database;
+                    const testAuth = firebase.auth;
+                    
+                    return typeof testApp === 'function' && 
+                           typeof testDB === 'function' && 
+                           typeof testAuth === 'function';
+                } catch (error) {
+                    console.error('Firebase检查错误:', error);
+                    return false;
+                }
             }
 
             showLoading(message) {
@@ -519,6 +1198,7 @@
         // 页面加载完成后开始加载 Firebase
         window.addEventListener('DOMContentLoaded', async () => {
             console.log('DOM 加载完成，开始初始化应用');
+            console.log('检测到设备类型:', firebaseLoader.isTablet ? '平板设备' : '非平板设备');
             
             // 直接初始化应用，不等待 Firebase
             const firebaseLoaded = await firebaseLoader.loadFirebaseSDK();
@@ -558,6 +1238,7 @@
 
             // DOM 元素
             const appContainer = document.getElementById('app-container');
+            const loginForm = document.getElementById('login-form');
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
             const useLocalCheckbox = document.getElementById('use-local');
@@ -600,7 +1281,9 @@
             }
 
             // 登录功能
-            loginBtn.addEventListener('click', async () => {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
                 const username = usernameInput.value.trim();
                 const password = passwordInput.value.trim();
                 useLocalMode = useLocalCheckbox.checked || !firebaseAvailable;
@@ -684,19 +1367,6 @@
                     loginSpinner.style.display = 'none';
                     loginBtn.disabled = false;
                     showSyncStatus('');
-                }
-            });
-
-            // 添加回车键登录支持
-            passwordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    loginBtn.click();
-                }
-            });
-
-            usernameInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    passwordInput.focus();
                 }
             });
 
@@ -786,7 +1456,7 @@
                 initializeImportExport();
             }
 
-            // 初始化导入导出功能 - 修复作用域问题
+            // 初始化导入导出功能
             function initializeImportExport() {
                 console.log('初始化导入导出功能...');
                 
@@ -801,7 +1471,7 @@
                 const importFileInput = document.getElementById('import-file-input');
                 const importPreview = document.getElementById('import-preview');
                 const previewTable = document.getElementById('preview-table');
-                const importSummary = document.getElementById('import-summary');
+                const importSummaryText = document.getElementById('import-summary-text');
                 const cancelImportBtn = document.getElementById('cancel-import-btn');
                 const confirmImportBtn = document.getElementById('confirm-import-btn');
                 const importStatus = document.getElementById('import-status');
@@ -809,19 +1479,14 @@
                 const exportOptions = document.getElementById('export-options');
 
                 // 检查元素是否存在
-                if (!importTriggerBtn) {
-                    console.error('找不到导入按钮元素');
-                    return;
-                }
-                
-                if (!exportTriggerBtn) {
-                    console.error('找不到导出按钮元素');
+                if (!importTriggerBtn || !exportTriggerBtn) {
+                    console.error('找不到导入或导出按钮元素');
                     return;
                 }
 
-                console.log('绑定导入按钮事件...');
+                console.log('绑定导入导出按钮事件...');
                 
-                // 导入功能 - 修复事件绑定
+                // 导入功能
                 importTriggerBtn.addEventListener('click', function(e) {
                     console.log('导入按钮被点击');
                     e.preventDefault();
@@ -990,11 +1655,11 @@
                     exportOptions.innerHTML = '';
 
                     if (dates.length === 0) {
-                        exportOptions.innerHTML = '<p class="text-gray-500 text-center py-4">没有可导出的数据。</p>';
+                        exportOptions.innerHTML = '<div class="empty-state"><p class="empty-state-text">没有可导出的数据。</p></div>';
                     } else {
                         const exportAllBtn = document.createElement('button');
                         exportAllBtn.textContent = '📦 导出全部数据';
-                        exportAllBtn.className = 'w-full text-left p-3 sm:p-4 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-semibold transition duration-300 touch-target';
+                        exportAllBtn.className = 'btn btn-secondary btn-block mb-2';
                         exportAllBtn.onclick = exportAllData;
                         exportOptions.appendChild(exportAllBtn);
                         
@@ -1005,7 +1670,7 @@
                             
                             const dateBtn = document.createElement('button');
                             dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
-                            dateBtn.className = 'w-full text-left p-3 sm:p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-300 touch-target';
+                            dateBtn.className = 'btn btn-secondary btn-block mb-2';
                             dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
                             exportOptions.appendChild(dateBtn);
                         });
@@ -1321,7 +1986,7 @@
                         summaryText += `，其中 ${newWordCount} 条为新数据`;
                     }
                     
-                    importSummary.textContent = summaryText;
+                    importSummaryText.textContent = summaryText;
                     importPreview.classList.remove('hidden');
                 }
 
@@ -1356,7 +2021,13 @@
                 const sortedDates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
 
                 if (sortedDates.length === 0) {
-                    wordListContainer.innerHTML = '<p class="text-center text-gray-500 bg-white p-6 sm:p-8 rounded-lg shadow">还没有记录任何单词，快来添加第一个吧！</p>';
+                    wordListContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <p class="empty-state-text">还没有记录任何单词</p>
+                            <p class="empty-state-subtext">快来添加第一个单词吧！</p>
+                        </div>
+                    `;
                     updateStats();
                     return;
                 }
@@ -1367,72 +2038,72 @@
                     const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
                     
                     const daySection = document.createElement('div');
-                    daySection.className = 'bg-white rounded-lg shadow-md p-4 sm:p-6 fade-in';
+                    daySection.className = 'card fade-in';
                     
                     const dateHeader = document.createElement('h3');
-                    dateHeader.className = 'text-lg sm:text-xl font-semibold text-gray-700 border-b pb-2 mb-4';
+                    dateHeader.className = 'date-header';
                     dateHeader.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
                     daySection.appendChild(dateHeader);
 
-                    const wordList = document.createElement('ul');
-                    wordList.className = 'space-y-3 sm:space-y-4';
+                    const wordList = document.createElement('div');
+                    wordList.className = 'word-list';
 
                     dayWords.forEach(word => {
-                        const wordItem = document.createElement('li');
-                        wordItem.className = `p-3 sm:p-4 border rounded-lg hover:shadow-md transition-shadow duration-300 ${word.mastered ? 'bg-gray-50' : 'bg-white'}`;
-                        wordItem.dataset.date = dateStr;
-                        wordItem.dataset.id = word.id;
+                        const wordCard = document.createElement('div');
+                        wordCard.className = `word-card ${word.mastered ? 'word-mastered' : ''}`;
+                        wordCard.dataset.date = dateStr;
+                        wordCard.dataset.id = word.id;
 
-                        const wordHeaderDiv = document.createElement('div');
-                        wordHeaderDiv.className = 'flex justify-between items-start mb-2';
+                        const wordHeader = document.createElement('div');
+                        wordHeader.className = 'word-header';
 
                         const wordTitle = document.createElement('h4');
-                        wordTitle.className = `text-base sm:text-lg font-bold text-indigo-800 ${word.mastered ? 'mastered' : ''}`;
+                        wordTitle.className = `word-title ${word.mastered ? 'mastered' : ''}`;
                         wordTitle.textContent = word.word;
 
                         const actionButtons = document.createElement('div');
-                        actionButtons.className = 'flex space-x-2';
+                        actionButtons.className = 'word-actions';
 
                         const masterBtn = document.createElement('button');
                         masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
-                        masterBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
+                        masterBtn.className = 'word-action-btn';
                         masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
                         masterBtn.onclick = () => toggleMaster(dateStr, word.id);
 
                         const deleteBtn = document.createElement('button');
                         deleteBtn.innerHTML = '🗑️';
-                        deleteBtn.className = 'text-xl sm:text-2xl p-2 sm:p-1 hover:scale-110 transition-transform touch-target no-select';
+                        deleteBtn.className = 'word-action-btn';
                         deleteBtn.title = '删除';
                         deleteBtn.onclick = () => deleteWord(dateStr, word.id);
 
                         actionButtons.appendChild(masterBtn);
                         actionButtons.appendChild(deleteBtn);
-                        wordHeaderDiv.appendChild(wordTitle);
-                        wordHeaderDiv.appendChild(actionButtons);
-                        wordItem.appendChild(wordHeaderDiv);
+                        wordHeader.appendChild(wordTitle);
+                        wordHeader.appendChild(actionButtons);
+                        wordCard.appendChild(wordHeader);
                         
                         if (word.meaning) {
                             const meaningP = document.createElement('p');
-                            meaningP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
+                            meaningP.className = 'word-detail';
                             meaningP.innerHTML = `<strong>释义:</strong> ${word.meaning}`;
-                            wordItem.appendChild(meaningP);
+                            wordCard.appendChild(meaningP);
                         }
 
                         if (word.synonym) {
                             const synonymP = document.createElement('p');
-                            synonymP.className = 'text-gray-600 mb-1 text-sm sm:text-base';
+                            synonymP.className = 'word-detail';
                             synonymP.innerHTML = `<strong>同义词:</strong> ${word.synonym}`;
-                            wordItem.appendChild(synonymP);
+                            wordCard.appendChild(synonymP);
                         }
 
                         if (word.phrase) {
                             const phraseP = document.createElement('p');
-                            phraseP.className = 'text-gray-500 italic text-xs sm:text-sm';
+                            phraseP.className = 'word-detail';
                             phraseP.innerHTML = `<strong>词组:</strong> ${word.phrase}`;
-                            wordItem.appendChild(phraseP);
+                            wordCard.appendChild(phraseP);
                         }
 
-                        wordList.appendChild(wordItem);
+                        wordList.appendChild(wordCard);
                     });
 
                     daySection.appendChild(wordList);
