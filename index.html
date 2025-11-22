@@ -1270,7 +1270,8 @@ function renderWords() {
     }
 
     sortedDates.forEach(dateStr => {
-        const dayWords = wordsData[dateStr];
+        // 对每一天的单词按照id倒序排列，这样最新添加的单词会显示在最上面
+        const dayWords = [...wordsData[dateStr]].sort((a, b) => b.id - a.id);
         const dateObj = new Date(dateStr + 'T00:00:00');
         const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
