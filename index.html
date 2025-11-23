@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6366f1">
 <style>
 /* 基础样式重置 */
 * {
@@ -2002,6 +2004,63 @@ function createExcelFile(data, fileName) {
 }
 
 console.log('应用初始化完成');
+  // 注册 Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('ServiceWorker 注册成功: ', registration.scope);
+        })
+        .catch(err => {
+          console.log('ServiceWorker 注册失败: ', err);
+        });
+    });
+  }
+  
+  // 添加安装提示
+  let deferredPrompt;
+  
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // 阻止默认的安装提示
+    e.preventDefault();
+    // 保存事件以便稍后触发
+    deferredPrompt = e;
+    
+    // 显示一个自定义的安装按钮
+    const installButton = document.createElement('button');
+    installButton.textContent = '📱 安装应用';
+    installButton.style.position = 'fixed';
+    installButton.style.bottom = '20px';
+    installButton.style.right = '20px';
+    installButton.style.padding = '10px 15px';
+    installButton.style.backgroundColor = '#6366f1';
+    installButton.style.color = 'white';
+    installButton.style.border = 'none';
+    installButton.style.borderRadius = '5px';
+    installButton.style.cursor = 'pointer';
+    installButton.style.zIndex = '1000';
+    installButton.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    installButton.style.fontSize = '14px';
+    
+    installButton.addEventListener('click', () => {
+      // 隐藏按钮
+      installButton.style.display = 'none';
+      // 显示安装提示
+      deferredPrompt.prompt();
+      // 等待用户响应
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('用户接受了安装');
+        } else {
+          console.log('用户取消了安装');
+        }
+        deferredPrompt = null;
+      });
+    });
+    
+    document.body.appendChild(installButton);
+  });
 </script>
 </body>
+
 </html>
