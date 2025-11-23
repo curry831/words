@@ -758,7 +758,7 @@ body {
     font-size: 0.875rem;
 }
 
-/* 复习模式样式 - 优化版本 */
+/* 复习模式样式 - 全新优化版本 */
 .review-container {
     display: flex;
     flex-direction: column;
@@ -1027,6 +1027,331 @@ body {
         font-size: 0.625rem;
     }
 }
+
+/* 列表视图优化 */
+.word-list-container {
+    width: 100%;
+}
+
+.word-list-item {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.word-list-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.word-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.word-list-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.word-list-count {
+    font-size: 0.875rem;
+    color: #6b7280;
+    background-color: #e9ecef;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+}
+
+.word-list-content {
+    padding: 1rem;
+}
+
+.word-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s ease;
+}
+
+.word-item:last-child {
+    border-bottom: none;
+}
+
+.word-item:hover {
+    background-color: #f9fafb;
+}
+
+.word-item.mastered {
+    opacity: 0.7;
+}
+
+.word-item.mastered .word-item-title {
+    text-decoration: line-through;
+}
+
+.word-item-content {
+    flex: 1;
+}
+
+.word-item-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.word-item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.word-item-detail {
+    background-color: #f3f4f6;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+}
+
+.word-item-detail-title {
+    font-weight: 500;
+    margin-right: 0.25rem;
+}
+
+.word-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.word-item-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.25rem;
+}
+
+.word-item-btn-master {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+
+.word-item-btn-master:hover {
+    background-color: #bae6fd;
+}
+
+.word-item-btn-master.mastered {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.word-item-btn-master.mastered:hover {
+    background-color: #bbf7d0;
+}
+
+.word-item-btn-delete {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.word-item-btn-delete:hover {
+    background-color: #fecaca;
+}
+
+/* 复习界面增强 */
+.review-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.review-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.review-btn-know {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.review-btn-know:hover {
+    background-color: #bbf7d0;
+}
+
+.review-btn-unknown {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.review-btn-unknown:hover {
+    background-color: #fecaca;
+}
+
+.review-btn-next {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+
+.review-btn-next:hover {
+    background-color: #bae6fd;
+}
+
+/* 复习界面卡片优化 */
+.review-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.review-card-hint {
+    position: absolute;
+    bottom: 1rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.875rem;
+    opacity: 0.8;
+    padding: 0.5rem;
+}
+
+.review-card-front .review-card-hint {
+    color: white;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 2rem;
+    margin: 0 2rem;
+}
+
+.review-card-back .review-card-hint {
+    color: #6b7280;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem;
+    margin: 0 1rem;
+}
+
+/* 复习进度条优化 */
+.review-progress-container {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 1.5rem;
+}
+
+.review-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.review-progress-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.review-progress-percentage {
+    font-size: 0.875rem;
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+.review-progress-bar {
+    width: 100%;
+    height: 0.75rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.review-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
+    border-radius: 9999px;
+    transition: width 0.5s ease;
+}
+
+/* 复习日期选择优化 */
+.review-date-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.review-date-option {
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.review-date-option:hover {
+    border-color: #6366f1;
+    background-color: #f3f4f6;
+    transform: translateY(-2px);
+}
+
+.review-date-option.selected {
+    border-color: #6366f1;
+    background-color: #eef2ff;
+    color: #4f46e5;
+    font-weight: 500;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.review-date-option-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.review-date-option-text {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.review-date-option-count {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.review-date-option.selected .review-date-option-count {
+    color: #4f46e5;
+}
 </style>
 </head>
 <body>
@@ -1173,22 +1498,22 @@ body {
         <form id="word-form">
             <div class="form-group">
                 <label for="word-input" class="form-label">单词</label>
-                <input type="text" id="word-input" class="form-input" placeholder="e.g., serendipity" required>
+                <input type="text" id="word-input" class="form-input" placeholder="加油哦" required>
             </div>
             
             <div class="form-group">
                 <label for="meaning-input" class="form-label">释义</label>
-                <textarea id="meaning-input" class="form-input form-textarea" placeholder="e.g., 意外发现珍奇事物的运气；机缘巧合"></textarea>
+                <textarea id="meaning-input" class="form-input form-textarea" placeholder="保持好心情"></textarea>
             </div>
             
             <div class="form-group">
                 <label for="synonym-input" class="form-label">同义词</label>
-                <textarea id="synonym-input" class="form-input form-textarea" placeholder="e.g., fortune, luck, fluke"></textarea>
+                <textarea id="synonym-input" class="form-input form-textarea" placeholder="六级过过过"></textarea>
             </div>
             
             <div class="form-group">
                 <label for="phrase-input" class="form-label">词组</label>
-                <textarea id="phrase-input" class="form-input form-textarea" placeholder="e.g., a stroke of serendipity"></textarea>
+                <textarea id="phrase-input" class="form-input form-textarea" placeholder="原神启动！"></textarea>
             </div>
             
             <button type="submit" class="btn btn-primary btn-full">添加单词</button>
@@ -1198,7 +1523,7 @@ body {
 
 <!-- 复习模态框 -->
 <div id="review-modal" class="modal">
-    <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
             <h3 class="modal-title">选择复习日期</h3>
             <button class="modal-close" id="close-review-modal-btn">&times;</button>
@@ -1209,11 +1534,14 @@ body {
         </div>
         
         <div id="review-container" style="display: none;">
-            <div class="review-progress">
-                <div class="progress-bar">
-                    <div id="review-progress-fill" class="progress-fill" style="width: 0%"></div>
+            <div class="review-progress-container">
+                <div class="review-progress-info">
+                    <div id="review-progress-text" class="review-progress-text">0 / 0</div>
+                    <div id="review-progress-percentage" class="review-progress-percentage">0%</div>
                 </div>
-                <div id="review-progress-text" class="progress-text">0 / 0</div>
+                <div class="review-progress-bar">
+                    <div id="review-progress-fill" class="review-progress-fill" style="width: 0%"></div>
+                </div>
             </div>
             
             <div class="review-card-container">
@@ -1221,7 +1549,7 @@ body {
                     <div class="review-card-inner">
                         <div class="review-card-front">
                             <div id="review-word" class="review-word"></div>
-                            <div class="review-hint">点击查看释义</div>
+                            <div class="review-card-hint">点击查看释义</div>
                         </div>
                         <div class="review-card-back">
                             <div id="review-meaning" class="review-detail">
@@ -1236,10 +1564,25 @@ body {
                                 <div class="review-detail-title">词组</div>
                                 <div id="review-phrase-content" class="review-detail-content"></div>
                             </div>
-                            <div class="review-hint">点击进入下一个单词</div>
+                            <div class="review-card-hint">点击进入下一个单词</div>
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="review-actions">
+                <button id="review-btn-know" class="review-btn review-btn-know">
+                    <span>✅</span>
+                    <span>认识</span>
+                </button>
+                <button id="review-btn-unknown" class="review-btn review-btn-unknown">
+                    <span>❌</span>
+                    <span>不认识</span>
+                </button>
+                <button id="review-btn-next" class="review-btn review-btn-next">
+                    <span>➡️</span>
+                    <span>下一个</span>
+                </button>
             </div>
         </div>
         
@@ -1606,6 +1949,22 @@ function initializeEventListeners() {
         reviewCard.addEventListener('click', handleReviewCardClick);
     }
 
+    // 复习按钮
+    const reviewBtnKnow = document.getElementById('review-btn-know');
+    if (reviewBtnKnow) {
+        reviewBtnKnow.addEventListener('click', () => markReviewWord(true));
+    }
+
+    const reviewBtnUnknown = document.getElementById('review-btn-unknown');
+    if (reviewBtnUnknown) {
+        reviewBtnUnknown.addEventListener('click', () => markReviewWord(false));
+    }
+
+    const reviewBtnNext = document.getElementById('review-btn-next');
+    if (reviewBtnNext) {
+        reviewBtnNext.addEventListener('click', nextReviewWord);
+    }
+
     // 文件拖放
     initializeFileDrop();
 
@@ -1813,7 +2172,7 @@ async function saveUserWords() {
     if (useLocalMode || !firebaseAvailable) {
         localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
         showSyncStatus('已保存到本地', 1500);
-        return;
+		        return;
     }
 
     try {
@@ -1959,7 +2318,7 @@ function renderReviewDateOptions() {
         return;
     }
     
-    let html = '<div class="date-selector">';
+    let html = '<div class="review-date-selector">';
     
     // 添加"全部单词"选项
     let totalWords = 0;
@@ -1968,9 +2327,10 @@ function renderReviewDateOptions() {
     });
     
     html += `
-        <div class="date-option" data-date="all">
-            <div class="date-option-text">全部单词</div>
-            <div class="date-option-count">${totalWords} 个单词</div>
+        <div class="review-date-option" data-date="all">
+            <div class="review-date-option-icon">📚</div>
+            <div class="review-date-option-text">全部单词</div>
+            <div class="review-date-option-count">${totalWords} 个单词</div>
         </div>
     `;
     
@@ -1984,9 +2344,10 @@ function renderReviewDateOptions() {
     
     if (unmasteredWords > 0) {
         html += `
-            <div class="date-option" data-date="unmastered">
-                <div class="date-option-text">未掌握单词</div>
-                <div class="date-option-count">${unmasteredWords} 个单词</div>
+            <div class="review-date-option" data-date="unmastered">
+                <div class="review-date-option-icon">📖</div>
+                <div class="review-date-option-text">未掌握单词</div>
+                <div class="review-date-option-count">${unmasteredWords} 个单词</div>
             </div>
         `;
     }
@@ -1998,9 +2359,10 @@ function renderReviewDateOptions() {
         const formattedDate = dateObj.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
         
         html += `
-            <div class="date-option" data-date="${dateStr}">
-                <div class="date-option-text">${formattedDate}</div>
-                <div class="date-option-count">${dayWords.length} 个单词</div>
+            <div class="review-date-option" data-date="${dateStr}">
+                <div class="review-date-option-icon">📅</div>
+                <div class="review-date-option-text">${formattedDate}</div>
+                <div class="review-date-option-count">${dayWords.length} 个单词</div>
             </div>
         `;
     });
@@ -2009,7 +2371,7 @@ function renderReviewDateOptions() {
     reviewDateOptions.innerHTML = html;
     
     // 添加点击事件
-    const dateOptions = reviewDateOptions.querySelectorAll('.date-option');
+    const dateOptions = reviewDateOptions.querySelectorAll('.review-date-option');
     dateOptions.forEach(option => {
         option.addEventListener('click', () => {
             // 移除其他选项的选中状态
@@ -2099,7 +2461,7 @@ function showReviewWord() {
     if (reviewCard) reviewCard.classList.remove('flipped');
 }
 
-// 处理复习卡片点击 - 修改为点击释义后自动进入下一个单词
+// 处理复习卡片点击
 function handleReviewCardClick() {
     const reviewCard = document.getElementById('review-card');
     
@@ -2115,6 +2477,24 @@ function handleReviewCardClick() {
     nextReviewWord();
 }
 
+// 标记复习单词
+function markReviewWord(known) {
+    if (currentReviewIndex >= reviewWords.length) return;
+    
+    const word = reviewWords[currentReviewIndex];
+    
+    // 更新单词掌握状态
+    if (wordsData[word.date]) {
+        const wordIndex = wordsData[word.date].findIndex(w => w.id === word.id);
+        if (wordIndex !== -1) {
+            wordsData[word.date][wordIndex].mastered = known;
+        }
+    }
+    
+    // 进入下一个单词
+    nextReviewWord();
+}
+
 // 下一个复习单词
 function nextReviewWord() {
     currentReviewIndex++;
@@ -2125,6 +2505,7 @@ function nextReviewWord() {
 function updateReviewProgress() {
     const progressFill = document.getElementById('review-progress-fill');
     const progressText = document.getElementById('review-progress-text');
+    const progressPercentage = document.getElementById('review-progress-percentage');
     
     if (progressFill) {
         const percentage = ((currentReviewIndex + 1) / reviewWords.length) * 100;
@@ -2133,6 +2514,11 @@ function updateReviewProgress() {
     
     if (progressText) {
         progressText.textContent = `${currentReviewIndex + 1} / ${reviewWords.length}`;
+    }
+    
+    if (progressPercentage) {
+        const percentage = Math.round(((currentReviewIndex + 1) / reviewWords.length) * 100);
+        progressPercentage.textContent = `${percentage}%`;
     }
 }
 
@@ -2235,18 +2621,32 @@ function renderListView(sortedDates) {
         const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
         const daySection = document.createElement('div');
-        daySection.className = 'card fade-in';
+        daySection.className = 'word-list-container';
 
-        const dateHeader = document.createElement('h3');
-        dateHeader.style.cssText = 'font-size: 1.125rem; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; margin-bottom: 1rem;';
-        dateHeader.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'word-list-header';
+        
+        const dateTitle = document.createElement('h3');
+        dateTitle.className = 'word-list-title';
+        dateTitle.textContent = formattedDate;
+        
+        const dateCount = document.createElement('span');
+        dateCount.className = 'word-list-count';
+        dateCount.textContent = `${dayWords.length} 个单词`;
+        
+        dateHeader.appendChild(dateTitle);
+        dateHeader.appendChild(dateCount);
         daySection.appendChild(dateHeader);
 
+        const wordListContent = document.createElement('div');
+        wordListContent.className = 'word-list-content';
+
         dayWords.forEach(word => {
-            const wordItem = createWordItem(word, dateStr);
-            daySection.appendChild(wordItem);
+            const wordItem = createWordListItem(word, dateStr);
+            wordListContent.appendChild(wordItem);
         });
 
+        daySection.appendChild(wordListContent);
         wordListContainer.appendChild(daySection);
     });
 }
@@ -2343,7 +2743,7 @@ function createWordCard(word, dateStr) {
 
     if (word.synonym) {
         const synonymDiv = document.createElement('div');
-        synonymDiv.className='word-detail';
+        synonymDiv.className = 'word-detail';
         synonymDiv.innerHTML = `
             <div class="word-detail-title">同义词</div>
             <div class="word-detail-content">${word.synonym}</div>
@@ -2377,61 +2777,67 @@ function createWordCard(word, dateStr) {
     return wordCard;
 }
 
-// 创建单词项（列表视图）
-function createWordItem(word, dateStr) {
+// 创建单词列表项（列表视图）
+function createWordListItem(word, dateStr) {
     const wordItem = document.createElement('div');
     wordItem.className = `word-item ${word.mastered ? 'mastered' : ''}`;
     wordItem.dataset.date = dateStr;
     wordItem.dataset.id = word.id;
 
-    const wordHeaderDiv = document.createElement('div');
-    wordHeaderDiv.className = 'word-header';
+    const wordContent = document.createElement('div');
+    wordContent.className = 'word-item-content';
 
-    const wordTitle = document.createElement('h4');
-    wordTitle.className = 'word-title';
+    const wordTitle = document.createElement('div');
+    wordTitle.className = 'word-item-title';
     wordTitle.textContent = word.word;
 
-    const actionButtons = document.createElement('div');
-    actionButtons.className = 'word-actions';
+    const wordDetails = document.createElement('div');
+    wordDetails.className = 'word-item-details';
+
+    if (word.meaning) {
+        const meaningDetail = document.createElement('div');
+        meaningDetail.className = 'word-item-detail';
+        meaningDetail.innerHTML = `<span class="word-item-detail-title">释义:</span> ${word.meaning}`;
+        wordDetails.appendChild(meaningDetail);
+    }
+
+    if (word.synonym) {
+        const synonymDetail = document.createElement('div');
+        synonymDetail.className = 'word-item-detail';
+        synonymDetail.innerHTML = `<span class="word-item-detail-title">同义词:</span> ${word.synonym}`;
+        wordDetails.appendChild(synonymDetail);
+    }
+
+    if (word.phrase) {
+        const phraseDetail = document.createElement('div');
+        phraseDetail.className = 'word-item-detail';
+        phraseDetail.innerHTML = `<span class="word-item-detail-title">词组:</span> ${word.phrase}`;
+        wordDetails.appendChild(phraseDetail);
+    }
+
+    wordContent.appendChild(wordTitle);
+    wordContent.appendChild(wordDetails);
+
+    const wordActions = document.createElement('div');
+    wordActions.className = 'word-item-actions';
 
     const masterBtn = document.createElement('button');
-    masterBtn.className = 'word-btn';
+    masterBtn.className = `word-item-btn word-item-btn-master ${word.mastered ? 'mastered' : ''}`;
     masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
     masterBtn.title = word.mastered ? '标记为未掌握' : '标记为已掌握';
     masterBtn.onclick = () => toggleMaster(dateStr, word.id);
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'word-btn';
+    deleteBtn.className = 'word-item-btn word-item-btn-delete';
     deleteBtn.innerHTML = '🗑️';
     deleteBtn.title = '删除';
     deleteBtn.onclick = () => deleteWord(dateStr, word.id);
 
-    actionButtons.appendChild(masterBtn);
-    actionButtons.appendChild(deleteBtn);
-    wordHeaderDiv.appendChild(wordTitle);
-    wordHeaderDiv.appendChild(actionButtons);
-    wordItem.appendChild(wordHeaderDiv);
+    wordActions.appendChild(masterBtn);
+    wordActions.appendChild(deleteBtn);
 
-    if (word.meaning) {
-        const meaningP = document.createElement('p');
-        meaningP.className = 'word-detail';
-        meaningP.innerHTML = `<strong>释义:</strong> ${word.meaning}`;
-        wordItem.appendChild(meaningP);
-    }
-
-    if (word.synonym) {
-        const synonymP = document.createElement('p');
-        synonymP.className = 'word-detail';
-        synonymP.innerHTML = `<strong>同义词:</strong> ${word.synonym}`;
-        wordItem.appendChild(synonymP);
-    }
-
-    if (word.phrase) {
-        const phraseP = document.createElement('p');
-        phraseP.className = 'word-detail';
-        phraseP.innerHTML = `<strong>词组:</strong> ${word.phrase}`;
-        wordItem.appendChild(phraseP);
-    }
+    wordItem.appendChild(wordContent);
+    wordItem.appendChild(wordActions);
 
     return wordItem;
 }
