@@ -228,6 +228,16 @@ body {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
+.btn-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.btn-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
 .btn-full {
     width: 100%;
 }
@@ -1176,6 +1186,15 @@ body {
     background-color: #fecaca;
 }
 
+.word-item-btn-edit {
+    background-color: #e0e7ff;
+    color: #4f46e5;
+}
+
+.word-item-btn-edit:hover {
+    background-color: #c7d2fe;
+}
+
 /* 复习界面增强 */
 .review-actions {
     display: flex;
@@ -1517,6 +1536,50 @@ body {
             </div>
             
             <button type="submit" class="btn btn-primary btn-full">添加单词</button>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑单词模态框 -->
+<div id="edit-word-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑单词</h3>
+            <button class="modal-close" id="close-edit-modal-btn">&times;</button>
+        </div>
+        
+        <form id="edit-word-form">
+            <input type="hidden" id="edit-word-id">
+            <input type="hidden" id="edit-word-date">
+            
+            <div class="form-group">
+                <label for="edit-word-input" class="form-label">单词</label>
+                <input type="text" id="edit-word-input" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-meaning-input" class="form-label">释义</label>
+                <textarea id="edit-meaning-input" class="form-input form-textarea"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-synonym-input" class="form-label">同义词</label>
+                <textarea id="edit-synonym-input" class="form-input form-textarea"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-phrase-input" class="form-label">词组</label>
+                <textarea id="edit-phrase-input" class="form-input form-textarea"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-size: 0.875rem; color: #6b7280;">
+                    <input type="checkbox" id="edit-mastered-checkbox" style="margin-right: 0.5rem;">
+                    标记为已掌握
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">保存修改</button>
         </form>
     </div>
 </div>
@@ -1885,6 +1948,12 @@ function initializeEventListeners() {
         wordForm.addEventListener('submit', handleAddWord);
     }
 
+    // 编辑单词表单
+    const editWordForm = document.getElementById('edit-word-form');
+    if (editWordForm) {
+        editWordForm.addEventListener('submit', handleEditWord);
+    }
+
     // 导入导出
     const exportTriggerBtn = document.getElementById('export-trigger-btn');
     if (exportTriggerBtn) {
@@ -1910,6 +1979,11 @@ function initializeEventListeners() {
     const closeAddModalBtn = document.getElementById('close-add-modal-btn');
     if (closeAddModalBtn) {
         closeAddModalBtn.addEventListener('click', hideAddWordModal);
+    }
+
+    const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
+    if (closeEditModalBtn) {
+        closeEditModalBtn.addEventListener('click', hideEditWordModal);
     }
 
     const closeReviewModalBtn = document.getElementById('close-review-modal-btn');
@@ -1974,6 +2048,7 @@ function initializeEventListeners() {
             hideExportModal();
             hideImportModal();
             hideAddWordModal();
+            hideEditWordModal();
             hideReviewModal();
         }
     });
@@ -2172,7 +2247,7 @@ async function saveUserWords() {
     if (useLocalMode || !firebaseAvailable) {
         localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
         showSyncStatus('已保存到本地', 1500);
-		        return;
+        return;
     }
 
     try {
@@ -2220,6 +2295,99 @@ function hideAddWordModal() {
         // 重置表单
         const wordForm = document.getElementById('word-form');
         if (wordForm) wordForm.reset();
+    }
+}
+
+// 显示编辑单词模态框
+function showEditWordModal(date, id) {
+    // 找到要编辑的单词
+    const word = wordsData[date].find(w => w.id === id);
+    if (!word) return;
+
+    // 填充表单
+    const editWordId = document.getElementById('edit-word-id');
+    const editWordDate = document.getElementById('edit-word-date');
+    const editWordInput = document.getElementById('edit-word-input');
+    const editMeaningInput = document.getElementById('edit-meaning-input');
+    const editSynonymInput = document.getElementById('edit-synonym-input');
+    const editPhraseInput = document.getElementById('edit-phrase-input');
+    const editMasteredCheckbox = document.getElementById('edit-mastered-checkbox');
+
+    if (editWordId) editWordId.value = id;
+    if (editWordDate) editWordDate.value = date;
+    if (editWordInput) editWordInput.value = word.word || '';
+    if (editMeaningInput) editMeaningInput.value = word.meaning || '';
+    if (editSynonymInput) editSynonymInput.value = word.synonym || '';
+    if (editPhraseInput) editPhraseInput.value = word.phrase || '';
+    if (editMasteredCheckbox) editMasteredCheckbox.checked = word.mastered || false;
+
+    // 显示模态框
+    const modal = document.getElementById('edit-word-modal');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        // 聚焦到单词输入框
+        setTimeout(() => {
+            if (editWordInput) editWordInput.focus();
+        }, 100);
+    }
+}
+
+// 隐藏编辑单词模态框
+function hideEditWordModal() {
+    const modal = document.getElementById('edit-word-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+        // 重置表单
+        const editWordForm = document.getElementById('edit-word-form');
+        if (editWordForm) editWordForm.reset();
+    }
+}
+
+// 处理编辑单词
+async function handleEditWord(e) {
+    e.preventDefault();
+    
+    const editWordId = document.getElementById('edit-word-id').value;
+    const editWordDate = document.getElementById('edit-word-date').value;
+    const editWordInput = document.getElementById('edit-word-input').value.trim();
+    const editMeaningInput = document.getElementById('edit-meaning-input').value.trim();
+    const editSynonymInput = document.getElementById('edit-synonym-input').value.trim();
+    const editPhraseInput = document.getElementById('edit-phrase-input').value.trim();
+    const editMasteredCheckbox = document.getElementById('edit-mastered-checkbox').checked;
+
+    if (!editWordInput) return;
+
+    // 找到要编辑的单词
+    const wordIndex = wordsData[editWordDate].findIndex(w => w.id === parseInt(editWordId));
+    if (wordIndex === -1) return;
+
+    // 更新单词信息
+    wordsData[editWordDate][wordIndex] = {
+        ...wordsData[editWordDate][wordIndex],
+        word: editWordInput,
+        meaning: editMeaningInput,
+        synonym: editSynonymInput,
+        phrase: editPhraseInput,
+        mastered: editMasteredCheckbox
+    };
+
+    // 先更新UI，再保存
+    hideEditWordModal();
+    renderWords();
+    showSyncStatus('单词已更新', 1500);
+
+    // 保存到云端或本地
+    if (useLocalMode || !firebaseAvailable) {
+        localStorage.setItem('words_' + currentUser, JSON.stringify(wordsData));
+        showSyncStatus('已保存到本地', 1500);
+    } else {
+        if (isOnline) {
+            await saveUserWords();
+        } else {
+            showSyncStatus('离线模式，数据将在网络恢复后同步', 3000);
+        }
     }
 }
 
@@ -2668,6 +2836,15 @@ function createWordCard(word, dateStr) {
     const cardActions = document.createElement('div');
     cardActions.className = 'word-card-actions';
 
+    const editBtn = document.createElement('button');
+    editBtn.className = 'word-card-btn';
+    editBtn.innerHTML = '✏️';
+    editBtn.title = '编辑';
+    editBtn.onclick = (e) => {
+        e.stopPropagation();
+        showEditWordModal(dateStr, word.id);
+    };
+
     const masterBtn = document.createElement('button');
     masterBtn.className = 'word-card-btn';
     masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
@@ -2686,6 +2863,7 @@ function createWordCard(word, dateStr) {
         deleteWord(dateStr, word.id);
     };
 
+    cardActions.appendChild(editBtn);
     cardActions.appendChild(masterBtn);
     cardActions.appendChild(deleteBtn);
 
@@ -2708,6 +2886,15 @@ function createWordCard(word, dateStr) {
     const backActions = document.createElement('div');
     backActions.className = 'word-card-actions';
 
+    const backEditBtn = document.createElement('button');
+    backEditBtn.className = 'word-card-btn';
+    backEditBtn.innerHTML = '✏️';
+    backEditBtn.title = '编辑';
+    backEditBtn.onclick = (e) => {
+        e.stopPropagation();
+        showEditWordModal(dateStr, word.id);
+    };
+
     const backMasterBtn = document.createElement('button');
     backMasterBtn.className = 'word-card-btn';
     backMasterBtn.innerHTML = word.mastered ? '↩️' : '✅';
@@ -2726,6 +2913,7 @@ function createWordCard(word, dateStr) {
         deleteWord(dateStr, word.id);
     };
 
+    backActions.appendChild(backEditBtn);
     backActions.appendChild(backMasterBtn);
     backActions.appendChild(backDeleteBtn);
 
@@ -2821,6 +3009,12 @@ function createWordListItem(word, dateStr) {
     const wordActions = document.createElement('div');
     wordActions.className = 'word-item-actions';
 
+    const editBtn = document.createElement('button');
+    editBtn.className = 'word-item-btn word-item-btn-edit';
+    editBtn.innerHTML = '✏️';
+    editBtn.title = '编辑';
+    editBtn.onclick = () => showEditWordModal(dateStr, word.id);
+
     const masterBtn = document.createElement('button');
     masterBtn.className = `word-item-btn word-item-btn-master ${word.mastered ? 'mastered' : ''}`;
     masterBtn.innerHTML = word.mastered ? '↩️' : '✅';
@@ -2833,6 +3027,7 @@ function createWordListItem(word, dateStr) {
     deleteBtn.title = '删除';
     deleteBtn.onclick = () => deleteWord(dateStr, word.id);
 
+    wordActions.appendChild(editBtn);
     wordActions.appendChild(masterBtn);
     wordActions.appendChild(deleteBtn);
 
@@ -2927,572 +3122,572 @@ function showRandomEncouragement() {
         "持之以恒，终将大成！",
         "你的努力，时间看得见！",
         "又向目标迈进了一步！"
-    ];
+];
 
-    const toast = document.getElementById('encouragement-toast');
-    const encouragementText = document.getElementById('encouragement-text');
-    
-    if (toast && encouragementText) {
-        const randomIndex = Math.floor(Math.random() * encouragements.length);
-        const message = encouragements[randomIndex];
-        encouragementText.textContent = message;
+const toast = document.getElementById('encouragement-toast');
+const encouragementText = document.getElementById('encouragement-text');
 
-        toast.classList.add('show');
+if (toast && encouragementText) {
+const randomIndex = Math.floor(Math.random() * encouragements.length);
+const message = encouragements[randomIndex];
+encouragementText.textContent = message;
 
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
+toast.classList.add('show');
+
+setTimeout(() => {
+toast.classList.remove('show');
+}, 3000);
+}
 }
 
 // 显示同步状态
 function showSyncStatus(message, duration = 2000) {
-    const syncStatus = document.getElementById('sync-status');
-    const syncStatusText = document.getElementById('sync-status-text');
-    
-    if (syncStatus && syncStatusText) {
-        syncStatusText.textContent = message;
-        syncStatus.classList.add('show');
-        setTimeout(() => {
-            syncStatus.classList.remove('show');
-        }, duration);
-    }
+const syncStatus = document.getElementById('sync-status');
+const syncStatusText = document.getElementById('sync-status-text');
+
+if (syncStatus && syncStatusText) {
+syncStatusText.textContent = message;
+syncStatus.classList.add('show');
+setTimeout(() => {
+syncStatus.classList.remove('show');
+}, duration);
+}
 }
 
 // 密码哈希
 function hashPassword(password) {
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-        const char = password.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-    }
-    return hash.toString();
+let hash = 0;
+for (let i = 0; i < password.length; i++) {
+const char = password.charCodeAt(i);
+hash = ((hash << 5) - hash) + char;
+hash = hash & hash;
+}
+return hash.toString();
 }
 
 // 导出相关函数
 function showExportModal() {
-    const modal = document.getElementById('export-modal');
-    const exportOptions = document.getElementById('export-options');
-    
-    if (!modal || !exportOptions) return;
-    
-    const dates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
-    exportOptions.innerHTML = '';
+const modal = document.getElementById('export-modal');
+const exportOptions = document.getElementById('export-options');
 
-    if (dates.length === 0) {
-        exportOptions.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 1rem;">没有可导出的数据。</p>';
-    } else {
-        const exportAllBtn = document.createElement('button');
-        exportAllBtn.textContent = '📦 导出全部数据';
-        exportAllBtn.className = 'btn btn-secondary';
-        exportAllBtn.style.cssText = 'width: 100%; margin-bottom: 0.5rem; justify-content: flex-start;';
-        exportAllBtn.onclick = exportAllData;
-        exportOptions.appendChild(exportAllBtn);
+if (!modal || !exportOptions) return;
 
-        dates.forEach(dateStr => {
-            const dayWords = wordsData[dateStr];
-            const dateObj = new Date(dateStr + 'T00:00:00');
-            const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+const dates = Object.keys(wordsData).sort((a, b) => new Date(b) - new Date(a));
+exportOptions.innerHTML = '';
 
-            const dateBtn = document.createElement('button');
-            dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
-            dateBtn.className = 'btn';
-            dateBtn.style.cssText = 'width: 100%; margin-bottom: 0.5rem; justify-content: flex-start; background-color: #f3f4f6; color: #374151;';
-            dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
-            exportOptions.appendChild(dateBtn);
-        });
-    }
+if (dates.length === 0) {
+exportOptions.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 1rem;">没有可导出的数据。</p>';
+} else {
+const exportAllBtn = document.createElement('button');
+exportAllBtn.textContent = '📦 导出全部数据';
+exportAllBtn.className = 'btn btn-secondary';
+exportAllBtn.style.cssText = 'width: 100%; margin-bottom: 0.5rem; justify-content: flex-start;';
+exportAllBtn.onclick = exportAllData;
+exportOptions.appendChild(exportAllBtn);
 
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
+dates.forEach(dateStr => {
+const dayWords = wordsData[dateStr];
+const dateObj = new Date(dateStr + 'T00:00:00');
+const formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+
+const dateBtn = document.createElement('button');
+dateBtn.textContent = `${formattedDate} (${dayWords.length} 个单词)`;
+dateBtn.className = 'btn';
+dateBtn.style.cssText = 'width: 100%; margin-bottom: 0.5rem; justify-content: flex-start; background-color: #f3f4f6; color: #374151;';
+dateBtn.onclick = () => exportDataForDate(dateStr, formattedDate);
+exportOptions.appendChild(dateBtn);
+});
+}
+
+modal.classList.add('show');
+document.body.style.overflow = 'hidden';
 }
 
 function hideExportModal() {
-    const modal = document.getElementById('export-modal');
-    if (modal) {
-        modal.classList.remove('show');
-        document.body.style.overflow = '';
-    }
+const modal = document.getElementById('export-modal');
+if (modal) {
+modal.classList.remove('show');
+document.body.style.overflow = '';
+}
 }
 
 function exportDataForDate(dateStr, formattedDate) {
-    const wordsForDate = wordsData[dateStr] || [];
-    const allWords = [];
+const wordsForDate = wordsData[dateStr] || [];
+const allWords = [];
 
-    wordsForDate.forEach(word => {
-        allWords.push({
-            '日期': dateStr,
-            '单词': word.word,
-            '释义': word.meaning || '',
-            '同义词': word.synonym || '',
-            '词组': word.phrase || '',
-            '掌握状态': word.mastered ? '已掌握' : '学习中'
-        });
-    });
+wordsForDate.forEach(word => {
+allWords.push({
+'日期': dateStr,
+'单词': word.word,
+'释义': word.meaning || '',
+'同义词': word.synonym || '',
+'词组': word.phrase || '',
+'掌握状态': word.mastered ? '已掌握' : '学习中'
+});
+});
 
-    if (allWords.length === 0) {
-        alert('该日期没有数据可以导出！');
-        return;
-    }
+if (allWords.length === 0) {
+alert('该日期没有数据可以导出！');
+return;
+}
 
-    // 创建并下载Excel文件
-    createAndDownloadExcel(allWords, `单词记录_${dateStr}.xlsx`);
-    hideExportModal();
+// 创建并下载Excel文件
+createAndDownloadExcel(allWords, `单词记录_${dateStr}.xlsx`);
+hideExportModal();
 }
 
 function exportAllData() {
-    const allWords = [];
+const allWords = [];
 
-    for (const date in wordsData) {
-        wordsData[date].forEach(word => {
-            allWords.push({
-                '日期': date,
-                '单词': word.word,
-                '释义': word.meaning || '',
-                '同义词': word.synonym || '',
-                '词组': word.phrase || '',
-                '掌握状态': word.mastered ? '已掌握' : '学习中'
-            });
-        });
-    }
+for (const date in wordsData) {
+wordsData[date].forEach(word => {
+allWords.push({
+'日期': date,
+'单词': word.word,
+'释义': word.meaning || '',
+'同义词': word.synonym || '',
+'词组': word.phrase || '',
+'掌握状态': word.mastered ? '已掌握' : '学习中'
+});
+});
+}
 
-    if (allWords.length === 0) {
-        alert('没有数据可以导出！');
-        return;
-    }
+if (allWords.length === 0) {
+alert('没有数据可以导出！');
+return;
+}
 
-    const today = new Date().toISOString().split('T')[0];
-    createAndDownloadExcel(allWords, `我的单词记录_全部_${today}.xlsx`);
-    hideExportModal();
+const today = new Date().toISOString().split('T')[0];
+createAndDownloadExcel(allWords, `我的单词记录_全部_${today}.xlsx`);
+hideExportModal();
 }
 
 // 导入相关函数
 function showImportModal() {
-    const modal = document.getElementById('import-modal');
-    if (modal) {
-        modal.classList.add('show');
-        document.body.style.overflow = 'hidden';
-        resetImportModal();
-    }
+const modal = document.getElementById('import-modal');
+if (modal) {
+modal.classList.add('show');
+document.body.style.overflow = 'hidden';
+resetImportModal();
+}
 }
 
 function hideImportModal() {
-    const modal = document.getElementById('import-modal');
-    if (modal) {
-        modal.classList.remove('show');
-        document.body.style.overflow = '';
-        resetImportModal();
-    }
+const modal = document.getElementById('import-modal');
+if (modal) {
+modal.classList.remove('show');
+document.body.style.overflow = '';
+resetImportModal();
+}
 }
 
 function resetImportModal() {
-    const importFileInput = document.getElementById('import-file-input');
-    const importPreview = document.getElementById('import-preview');
-    const importStatus = document.getElementById('import-status');
-    const importError = document.getElementById('import-error');
-    const previewTable = document.getElementById('preview-table');
-    
-    if (importFileInput) importFileInput.value = '';
-    if (importPreview) importPreview.style.display = 'none';
-    if (importStatus) importStatus.style.display = 'none';
-    if (importError) importError.classList.remove('show');
-    if (previewTable) previewTable.innerHTML = '';
-    importData = null;
+const importFileInput = document.getElementById('import-file-input');
+const importPreview = document.getElementById('import-preview');
+const importStatus = document.getElementById('import-status');
+const importError = document.getElementById('import-error');
+const previewTable = document.getElementById('preview-table');
+
+if (importFileInput) importFileInput.value = '';
+if (importPreview) importPreview.style.display = 'none';
+if (importStatus) importStatus.style.display = 'none';
+if (importError) importError.classList.remove('show');
+if (previewTable) previewTable.innerHTML = '';
+importData = null;
 }
 
 function initializeFileDrop() {
-    const fileDropZone = document.getElementById('file-drop-zone');
-    const importFileInput = document.getElementById('import-file-input');
-    
-    if (!fileDropZone || !importFileInput) return;
+const fileDropZone = document.getElementById('file-drop-zone');
+const importFileInput = document.getElementById('import-file-input');
 
-    fileDropZone.addEventListener('click', () => {
-        importFileInput.click();
-    });
+if (!fileDropZone || !importFileInput) return;
 
-    fileDropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileDropZone.classList.add('dragover');
-    });
+fileDropZone.addEventListener('click', () => {
+importFileInput.click();
+});
 
-    fileDropZone.addEventListener('dragleave', () => {
-        fileDropZone.classList.remove('dragover');
-    });
+fileDropZone.addEventListener('dragover', (e) => {
+e.preventDefault();
+fileDropZone.classList.add('dragover');
+});
 
-    fileDropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileDropZone.classList.remove('dragover');
+fileDropZone.addEventListener('dragleave', () => {
+fileDropZone.classList.remove('dragover');
+});
 
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFileSelect(files[0]);
-        }
-    });
+fileDropZone.addEventListener('drop', (e) => {
+e.preventDefault();
+fileDropZone.classList.remove('dragover');
 
-    importFileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-        }
-    });
+const files = e.dataTransfer.files;
+if (files.length > 0) {
+handleFileSelect(files[0]);
+}
+});
+
+importFileInput.addEventListener('change', (e) => {
+if (e.target.files.length > 0) {
+handleFileSelect(e.target.files[0]);
+}
+});
 }
 
 function handleFileSelect(file) {
-    const importError = document.getElementById('import-error');
-    const importStatus = document.getElementById('import-status');
-    
-    // 重置错误信息
-    if (importError) importError.classList.remove('show');
+const importError = document.getElementById('import-error');
+const importStatus = document.getElementById('import-status');
 
-    // 检查文件类型
-    if (!file.name.match(/\.(xlsx|xls)$/)) {
-        if (importError) {
-            importError.textContent = '请选择Excel文件（.xlsx 或 .xls）';
-            importError.classList.add('show');
-        }
-        return;
-    }
+// 重置错误信息
+if (importError) importError.classList.remove('show');
 
-    // 检查文件大小（限制为10MB）
-    if (file.size > 10 * 1024 * 1024) {
-        if (importError) {
-            importError.textContent = '文件大小超过限制（10MB）';
-            importError.classList.add('show');
-        }
-        return;
-    }
+// 检查文件类型
+if (!file.name.match(/\.(xlsx|xls)$/)) {
+if (importError) {
+importError.textContent = '请选择Excel文件（.xlsx 或 .xls）';
+importError.classList.add('show');
+}
+return;
+}
 
-    // 显示加载状态
-    if (importStatus) {
-        importStatus.style.display = 'block';
-        importStatus.innerHTML = '<div class="loading" style="margin: 0 auto 0.5rem;"></div><p style="font-size: 0.875rem; color: #6b7280;">正在读取文件...</p>';
-    }
+// 检查文件大小（限制为10MB）
+if (file.size > 10 * 1024 * 1024) {
+if (importError) {
+importError.textContent = '文件大小超过限制（10MB）';
+importError.classList.add('show');
+}
+return;
+}
 
-    const reader = new FileReader();
+// 显示加载状态
+if (importStatus) {
+importStatus.style.display = 'block';
+importStatus.innerHTML = '<div class="loading" style="margin: 0 auto 0.5rem;"></div><p style="font-size: 0.875rem; color: #6b7280;">正在读取文件...</p>';
+}
 
-    reader.onload = function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
+const reader = new FileReader();
 
-            // 检查XLSX库是否已加载
-            if (typeof XLSX === 'undefined') {
-                // 动态加载XLSX库
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-                script.onload = function() {
-                    // 库加载完成后处理Excel文件
-                    processExcelData(data);
-                };
-                script.onerror = function() {
-                    if (importStatus) importStatus.style.display = 'none';
-                    if (importError) {
-                        importError.textContent = '无法加载Excel处理库，请检查网络连接';
-                        importError.classList.add('show');
-                    }
-                };
-                document.head.appendChild(script);
-            } else {
-                // 库已加载，直接处理Excel文件
-                processExcelData(data);
-            }
-        } catch (error) {
-            console.error('读取文件错误:', error);
-            if (importStatus) importStatus.style.display = 'none';
-            if (importError) {
-                importError.textContent = '读取文件失败: ' + error.message;
-                importError.classList.add('show');
-            }
-        }
-    };
+reader.onload = function(e) {
+try {
+const data = new Uint8Array(e.target.result);
 
-    reader.onerror = function() {
-        if (importStatus) importStatus.style.display = 'none';
-        if (importError) {
-            importError.textContent = '文件读取失败，请重试';
-            importError.classList.add('show');
-        }
-    };
+// 检查XLSX库是否已加载
+if (typeof XLSX === 'undefined') {
+// 动态加载XLSX库
+const script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+script.onload = function() {
+// 库加载完成后处理Excel文件
+processExcelData(data);
+};
+script.onerror = function() {
+if (importStatus) importStatus.style.display = 'none';
+if (importError) {
+importError.textContent = '无法加载Excel处理库，请检查网络连接';
+importError.classList.add('show');
+}
+};
+document.head.appendChild(script);
+} else {
+// 库已加载，直接处理Excel文件
+processExcelData(data);
+}
+} catch (error) {
+console.error('读取文件错误:', error);
+if (importStatus) importStatus.style.display = 'none';
+if (importError) {
+importError.textContent = '读取文件失败: ' + error.message;
+importError.classList.add('show');
+}
+}
+};
 
-    reader.readAsArrayBuffer(file);
+reader.onerror = function() {
+if (importStatus) importStatus.style.display = 'none';
+if (importError) {
+importError.textContent = '文件读取失败，请重试';
+importError.classList.add('show');
+}
+};
+
+reader.readAsArrayBuffer(file);
 }
 
 function processExcelData(data) {
-    const importStatus = document.getElementById('import-status');
-    const importError = document.getElementById('import-error');
-    
-    try {
-        if (importStatus) {
-            importStatus.innerHTML = '<div class="loading" style="margin: 0 auto 0.5rem;"></div><p style="font-size: 0.875rem; color: #6b7280;">正在解析Excel文件...</p>';
-        }
+const importStatus = document.getElementById('import-status');
+const importError = document.getElementById('import-error');
 
-        const workbook = XLSX.read(data, { type: 'array' });
+try {
+if (importStatus) {
+importStatus.innerHTML = '<div class="loading" style="margin: 0 auto 0.5rem;"></div><p style="font-size: 0.875rem; color: #6b7280;">正在解析Excel文件...</p>';
+}
 
-        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-            throw new Error('Excel文件中没有工作表');
-        }
+const workbook = XLSX.read(data, { type: 'array' });
 
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+throw new Error('Excel文件中没有工作表');
+}
 
-        if (jsonData.length === 0) {
-            throw new Error('Excel文件中没有数据');
-        }
+const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
-        // 验证数据格式 - 更灵活的列名匹配
-        const columns = Object.keys(jsonData[0]);
-        console.log('Excel列名:', columns);
+if (jsonData.length === 0) {
+throw new Error('Excel文件中没有数据');
+}
 
-        // 尝试匹配必需的列
-        let dateColumn = null;
-        let wordColumn = null;
+// 验证数据格式 - 更灵活的列名匹配
+const columns = Object.keys(jsonData[0]);
+console.log('Excel列名:', columns);
 
-        // 查找日期列
-        for (const col of columns) {
-            if (col.includes('日期') || col.toLowerCase().includes('date')) {
-                dateColumn = col;
-                break;
-            }
-        }
+// 尝试匹配必需的列
+let dateColumn = null;
+let wordColumn = null;
 
-        // 查找单词列
-        for (const col of columns) {
-            if (col.includes('单词') || col.toLowerCase().includes('word')) {
-                wordColumn = col;
-                break;
-            }
-        }
+// 查找日期列
+for (const col of columns) {
+if (col.includes('日期') || col.toLowerCase().includes('date')) {
+dateColumn = col;
+break;
+}
+}
 
-        if (!dateColumn || !wordColumn) {
-            throw new Error(`Excel文件格式不正确，必须包含"日期"和"单词"列。找到的列: ${columns.join(', ')}`);
-        }
+// 查找单词列
+for (const col of columns) {
+if (col.includes('单词') || col.toLowerCase().includes('word')) {
+wordColumn = col;
+break;
+}
+}
 
-        // 标准化数据格式
-        const standardizedData = jsonData.map(row => {
-            const newRow = {};
+if (!dateColumn || !wordColumn) {
+throw new Error(`Excel文件格式不正确，必须包含"日期"和"单词"列。找到的列: ${columns.join(', ')}`);
+}
 
-            // 标准化日期列
-            newRow['日期'] = row[dateColumn];
+// 标准化数据格式
+const standardizedData = jsonData.map(row => {
+const newRow = {};
 
-            // 标准化单词列
-            newRow['单词'] = row[wordColumn];
+// 标准化日期列
+newRow['日期'] = row[dateColumn];
 
-            // 标准化其他列
-            for (const col of columns) {
-                if (col === dateColumn || col === wordColumn) continue;
+// 标准化单词列
+newRow['单词'] = row[wordColumn];
 
-                if (col.includes('释义') || col.toLowerCase().includes('meaning')) {
-                    newRow['释义'] = row[col];
-                } else if (col.includes('同义词') || col.toLowerCase().includes('synonym')) {
-                    newRow['同义词'] = row[col];
-                } else if (col.includes('词组') || col.toLowerCase().includes('phrase')) {
-                    newRow['词组'] = row[col];
-                } else if (col.includes('掌握') || col.toLowerCase().includes('master')) {
-                    newRow['掌握状态'] = row[col];
-                } else {
-                    // 如果列不匹配任何已知列，保留原列名
-                    newRow[col] = row[col];
-                }
-            }
+// 标准化其他列
+for (const col of columns) {
+if (col === dateColumn || col === wordColumn) continue;
 
-            return newRow;
-        });
+if (col.includes('释义') || col.toLowerCase().includes('meaning')) {
+newRow['释义'] = row[col];
+} else if (col.includes('同义词') || col.toLowerCase().includes('synonym')) {
+newRow['同义词'] = row[col];
+} else if (col.includes('词组') || col.toLowerCase().includes('phrase')) {
+newRow['词组'] = row[col];
+} else if (col.includes('掌握') || col.toLowerCase().includes('master')) {
+newRow['掌握状态'] = row[col];
+} else {
+// 如果列不匹配任何已知列，保留原列名
+newRow[col] = row[col];
+}
+}
 
-        importData = standardizedData;
-        showImportPreview(standardizedData);
-        if (importStatus) importStatus.style.display = 'none';
-    } catch (error) {
-        console.error('处理Excel数据错误:', error);
-        if (importStatus) importStatus.style.display = 'none';
-        if (importError) {
-            importError.textContent = '解析Excel文件失败: ' + error.message;
-            importError.classList.add('show');
-        }
-    }
+return newRow;
+});
+
+importData = standardizedData;
+showImportPreview(standardizedData);
+if (importStatus) importStatus.style.display = 'none';
+} catch (error) {
+console.error('处理Excel数据错误:', error);
+if (importStatus) importStatus.style.display = 'none';
+if (importError) {
+importError.textContent = '解析Excel文件失败: ' + error.message;
+importError.classList.add('show');
+}
+}
 }
 
 function showImportPreview(data) {
-    const importPreview = document.getElementById('import-preview');
-    const previewTable = document.getElementById('preview-table');
-    const importSummary = document.getElementById('import-summary');
-    
-    if (!importPreview || !previewTable || !importSummary) return;
+const importPreview = document.getElementById('import-preview');
+const previewTable = document.getElementById('preview-table');
+const importSummary = document.getElementById('import-summary');
 
-    // 创建预览表格
-    let tableHTML = `
-        <thead>
-            <tr>
-                <th>日期</th>
-                <th>单词</th>
-                <th>释义</th>
-                <th>同义词</th>
-                <th>词组</th>
-                <th>掌握状态</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
+if (!importPreview || !previewTable || !importSummary) return;
 
-    // 只显示前10行作为预览
-    const previewRows = data.slice(0, 10);
-    previewRows.forEach(row => {
-        tableHTML += `
-            <tr>
-                <td>${row['日期'] || ''}</td>
-                <td>${row['单词'] || ''}</td>
-                <td>${row['释义'] || ''}</td>
-                <td>${row['同义词'] || ''}</td>
-                <td>${row['词组'] || ''}</td>
-                <td>${row['掌握状态'] || ''}</td>
-            </tr>
-        `;
-    });
+// 创建预览表格
+let tableHTML = `
+<thead>
+<tr>
+<th>日期</th>
+<th>单词</th>
+<th>释义</th>
+<th>同义词</th>
+<th>词组</th>
+<th>掌握状态</th>
+</tr>
+</thead>
+<tbody>
+`;
 
-    tableHTML += '</tbody>';
-    previewTable.innerHTML = tableHTML;
+// 只显示前10行作为预览
+const previewRows = data.slice(0, 10);
+previewRows.forEach(row => {
+tableHTML += `
+<tr>
+<td>${row['日期'] || ''}</td>
+<td>${row['单词'] || ''}</td>
+<td>${row['释义'] || ''}</td>
+<td>${row['同义词'] || ''}</td>
+<td>${row['词组'] || ''}</td>
+<td>${row['掌握状态'] || ''}</td>
+</tr>
+`;
+});
 
-    // 显示导入摘要
-    const importOption = document.querySelector('input[name="import-option"]:checked').value;
-    let summaryText = `共 ${data.length} 条数据`;
+tableHTML += '</tbody>';
+previewTable.innerHTML = tableHTML;
 
-    if (importOption === 'merge') {
-        // 计算将导入的新数据量
-        let newWordCount = 0;
-        data.forEach(row => {
-            const date = row['日期'];
-            const word = row['单词'];
-            if (date && word) {
-                if (!wordsData[date] || !wordsData[date].some(w => w.word === word)) {
-                    newWordCount++;
-                }
-            }
-        });
-        summaryText += `，其中 ${newWordCount} 条为新数据`;
-    }
+// 显示导入摘要
+const importOption = document.querySelector('input[name="import-option"]:checked').value;
+let summaryText = `共 ${data.length} 条数据`;
 
-    importSummary.textContent = summaryText;
-    importPreview.style.display = 'block';
+if (importOption === 'merge') {
+// 计算将导入的新数据量
+let newWordCount = 0;
+data.forEach(row => {
+const date = row['日期'];
+const word = row['单词'];
+if (date && word) {
+if (!wordsData[date] || !wordsData[date].some(w => w.word === word)) {
+newWordCount++;
+}
+}
+});
+summaryText += `，其中 ${newWordCount} 条为新数据`;
+}
+
+importSummary.textContent = summaryText;
+importPreview.style.display = 'block';
 }
 
 async function handleImport() {
-    if (!importData) return;
+if (!importData) return;
 
-    const importOption = document.querySelector('input[name="import-option"]:checked').value;
-    const importPreview = document.getElementById('import-preview');
-    const importStatus = document.getElementById('import-status');
-    const importError = document.getElementById('import-error');
+const importOption = document.querySelector('input[name="import-option"]:checked').value;
+const importPreview = document.getElementById('import-preview');
+const importStatus = document.getElementById('import-status');
+const importError = document.getElementById('import-error');
 
-    try {
-        if (importPreview) importPreview.style.display = 'none';
-        if (importStatus) importStatus.style.display = 'block';
+try {
+if (importPreview) importPreview.style.display = 'none';
+if (importStatus) importStatus.style.display = 'block';
 
-        if (importOption === 'replace') {
-            wordsData = {};
-        }
+if (importOption === 'replace') {
+wordsData = {};
+}
 
-        // 处理导入数据
-        let importCount = 0;
-        let skipCount = 0;
+// 处理导入数据
+let importCount = 0;
+let skipCount = 0;
 
-        for (const row of importData) {
-            const date = row['日期'];
-            const word = row['单词'];
+for (const row of importData) {
+const date = row['日期'];
+const word = row['单词'];
 
-            if (!date || !word) continue;
+if (!date || !word) continue;
 
-            if (!wordsData[date]) {
-                wordsData[date] = [];
-            }
+if (!wordsData[date]) {
+wordsData[date] = [];
+}
 
-            // 检查是否已存在（合并模式）
-            if (importOption === 'merge') {
-                const exists = wordsData[date].some(w => w.word === word);
-                if (exists) {
-                    skipCount++;
-                    continue;
-                }
-            }
+// 检查是否已存在（合并模式）
+if (importOption === 'merge') {
+const exists = wordsData[date].some(w => w.word === word);
+if (exists) {
+skipCount++;
+continue;
+}
+}
 
-            // 创建新单词对象
-            const newWord = {
-                id: Date.now() + Math.random(),
-                word: word,
-                meaning: row['释义'] || '',
-                synonym: row['同义词'] || '',
-                phrase: row['词组'] || '',
-                mastered: row['掌握状态'] === '已掌握'
-            };
+// 创建新单词对象
+const newWord = {
+id: Date.now() + Math.random(),
+word: word,
+meaning: row['释义'] || '',
+synonym: row['同义词'] || '',
+phrase: row['词组'] || '',
+mastered: row['掌握状态'] === '已掌握'
+};
 
-            wordsData[date].push(newWord);
-            importCount++;
-        }
+wordsData[date].push(newWord);
+importCount++;
+}
 
-        // 保存到云端或本地
-        await saveUserWords();
+// 保存到云端或本地
+await saveUserWords();
 
-        // 显示结果
-        let message = `成功导入 ${importCount} 条数据`;
-        if (skipCount > 0) {
-            message += `，跳过 ${skipCount} 条重复数据`;
-        }
+// 显示结果
+let message = `成功导入 ${importCount} 条数据`;
+if (skipCount > 0) {
+message += `，跳过 ${skipCount} 条重复数据`;
+}
 
-        showSyncStatus(message, 3000);
+showSyncStatus(message, 3000);
 
-        // 刷新显示
-        renderWords();
+// 刷新显示
+renderWords();
 
-        // 关闭模态框
-        setTimeout(() => {
-            hideImportModal();
-        }, 1000);
+// 关闭模态框
+setTimeout(() => {
+hideImportModal();
+}, 1000);
 
-    } catch (error) {
-        console.error('导入数据错误:', error);
-        if (importError) {
-            importError.textContent = '导入失败: ' + error.message;
-            importError.classList.add('show');
-        }
-    } finally {
-        if (importStatus) importStatus.style.display = 'none';
-    }
+} catch (error) {
+console.error('导入数据错误:', error);
+if (importError) {
+importError.textContent = '导入失败: ' + error.message;
+importError.classList.add('show');
+}
+} finally {
+if (importStatus) importStatus.style.display = 'none';
+}
 }
 
 // 创建并下载Excel文件
 function createAndDownloadExcel(data, fileName) {
-    // 检查是否已加载XLSX库
-    if (typeof XLSX === 'undefined') {
-        // 动态加载XLSX库
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-        script.onload = function() {
-            // 库加载完成后创建Excel文件
-            createExcelFile(data, fileName);
-        };
-        script.onerror = function() {
-            alert('无法加载Excel导出库，请检查网络连接');
-        };
-        document.head.appendChild(script);
-    } else {
-        // 库已加载，直接创建Excel文件
-        createExcelFile(data, fileName);
-    }
+// 检查是否已加载XLSX库
+if (typeof XLSX === 'undefined') {
+// 动态加载XLSX库
+const script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+script.onload = function() {
+// 库加载完成后创建Excel文件
+createExcelFile(data, fileName);
+};
+script.onerror = function() {
+alert('无法加载Excel导出库，请检查网络连接');
+};
+document.head.appendChild(script);
+} else {
+// 库已加载，直接创建Excel文件
+createExcelFile(data, fileName);
+}
 }
 
 // 创建Excel文件
 function createExcelFile(data, fileName) {
-    try {
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "单词记录");
-        XLSX.writeFile(wb, fileName);
-    } catch (error) {
-        console.error('创建Excel文件失败:', error);
-        alert('创建Excel文件失败: ' + error.message);
-    }
+try {
+const ws = XLSX.utils.json_to_sheet(data);
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "单词记录");
+XLSX.writeFile(wb, fileName);
+} catch (error) {
+console.error('创建Excel文件失败:', error);
+alert('创建Excel文件失败: ' + error.message);
+}
 }
 
 console.log('应用初始化完成');
 </script>
-    
+
 </body>
 
 </html>
